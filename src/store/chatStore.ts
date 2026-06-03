@@ -8,6 +8,7 @@ interface ChatState {
   isPartnerTyping: boolean;
   partnerOnline: boolean;
   roomClosed: boolean;
+  isReconnecting: boolean;
   error: string | null;
   setSession: (session: RoomSession, partnerUserId: string | null) => void;
   setMessages: (messages: ChatMessage[]) => void;
@@ -15,6 +16,7 @@ interface ChatState {
   setPartnerTyping: (typing: boolean) => void;
   setPartnerOnline: (online: boolean) => void;
   setRoomClosed: (closed: boolean) => void;
+  setIsReconnecting: (reconnecting: boolean) => void;
   setError: (error: string | null) => void;
   clearChat: () => void;
 }
@@ -26,6 +28,7 @@ export const useChatStore = create<ChatState>((set) => ({
   isPartnerTyping: false,
   partnerOnline: false,
   roomClosed: false,
+  isReconnecting: false,
   error: null,
 
   setSession: (session, partnerUserId) =>
@@ -49,6 +52,8 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setRoomClosed: (closed) => set({ roomClosed: closed }),
 
+  setIsReconnecting: (reconnecting) => set({ isReconnecting: reconnecting }),
+
   setError: (error) => set({ error }),
 
   clearChat: () =>
@@ -59,6 +64,7 @@ export const useChatStore = create<ChatState>((set) => ({
       isPartnerTyping: false,
       partnerOnline: false,
       roomClosed: false,
+      isReconnecting: false,
       error: null,
     }),
 }));

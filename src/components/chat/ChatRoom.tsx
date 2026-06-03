@@ -31,6 +31,7 @@ export function ChatRoom({ roomId }: Props) {
     partnerOnline,
     partnerUserId,
     roomClosed,
+    isReconnecting,
     error,
     sendMessage,
     sendImage,
@@ -110,6 +111,12 @@ export function ChatRoom({ roomId }: Props) {
           </Button>
         </div>
       </header>
+
+      {isReconnecting && (
+        <div className="bg-amber-500/10 px-4 py-2 text-center text-sm text-amber-600">
+          Đang kết nối lại...
+        </div>
+      )}
 
       {error && (
         <div className="bg-destructive/10 px-4 py-2 text-center text-sm text-destructive">

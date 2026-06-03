@@ -16,6 +16,7 @@ export function useChat(roomId: string) {
     isPartnerTyping,
     partnerOnline,
     roomClosed,
+    isReconnecting,
     error,
     setSession,
     setMessages,
@@ -23,6 +24,7 @@ export function useChat(roomId: string) {
     setPartnerTyping,
     setPartnerOnline,
     setRoomClosed,
+    setIsReconnecting,
     setError,
     clearChat,
   } = useChatStore();
@@ -37,6 +39,8 @@ export function useChat(roomId: string) {
     socket.auth = { token };
 
     const connectAndJoin = () => {
+      setIsReconnecting(false);
+      socket.auth = { token: localStorage.getItem('accessToken') || '' };
       socket.emit('room:join', { roomId });
     };
 
@@ -69,6 +73,21 @@ export function useChat(roomId: string) {
       setError(data?.message || 'Có lỗi xảy ra');
     };
 
+    const onDisconnect = (reason: string) => {
+      if (reason === 'io client disconnect') return;
+      setIsReconnecting(true);
+    };
+
+    const onConnectError = (_err: Error) => {
+      setError('Mất kết nối, đang thử lại...');
+    };
+
+    const onVisibilityChange = () => {
+      if (!document.hidden && !socket.connected && socket.active) {
+        setError('Mất kết nối, đang thử lại...');
+      }
+    };
+
     /**
      * Server tu choi quyen vao phong:
      * - Neu user dang co phong khac (doc tu cookie) -> redirect ve phong do.
@@ -76,13 +95,16 @@ export function useChat(roomId: string) {
      */
     const onAccessDenied = () => {
       socket.disconnect();
-      // Xóa cookie stale để tránh middleware redirect vòng lặp vào phòng chết.
+      setIsReconnecting(false);
       clearRoomCookie();
+      clearChat();
       router.replace('/');
     };
 
     // Đăng ký listeners TRƯỚC khi connect/join để tránh miss event do race.
     socket.on('connect', connectAndJoin);
+    socket.on('disconnect', onDisconnect);
+    socket.on('connect_error', onConnectError);
     socket.on('room:joined', onRoomJoined);
     socket.on('room:access_denied', onAccessDenied);
     socket.on('chat:message', onMessage);
@@ -90,6 +112,8 @@ export function useChat(roomId: string) {
     socket.on('room:presence', onPresence);
     socket.on('room:closed', onRoomClosed);
     socket.on('error', onSocketError);
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     if (!socket.connected) {
       socket.connect();
@@ -99,6 +123,8 @@ export function useChat(roomId: string) {
 
     return () => {
       socket.off('connect', connectAndJoin);
+      socket.off('disconnect', onDisconnect);
+      socket.off('connect_error', onConnectError);
       socket.off('room:joined', onRoomJoined);
       socket.off('room:access_denied', onAccessDenied);
       socket.off('chat:message', onMessage);
@@ -106,8 +132,9 @@ export function useChat(roomId: string) {
       socket.off('room:presence', onPresence);
       socket.off('room:closed', onRoomClosed);
       socket.off('error', onSocketError);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [roomId, router, setSession, setMessages, addMessage, setPartnerTyping, setPartnerOnline, setRoomClosed, setError]);
+  }, [roomId, router, setSession, setMessages, addMessage, setPartnerTyping, setPartnerOnline, setRoomClosed, setIsReconnecting, setError, clearChat]);
 
   const emitTyping = useCallback(
     (isTyping: boolean) => {
@@ -189,6 +216,7 @@ export function useChat(roomId: string) {
     isPartnerTyping,
     partnerOnline,
     roomClosed,
+    isReconnecting,
     error,
     myAlias: session?.myAlias ?? null,
     partnerAlias: session?.partnerAlias ?? null,

@@ -3,6 +3,16 @@ import { io, Socket } from 'socket.io-client';
 let chatSocket: Socket | null = null;
 let matchmakingSocket: Socket | null = null;
 
+const SOCKET_OPTIONS = {
+  autoConnect: false,
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  randomizationFactor: 0.5,
+};
+
 /** Browser: same-origin qua Next rewrite (tránh CORS/ngrok). SSR: trỏ thẳng backend. */
 function getSocketBaseUrl(): string {
   if (typeof window !== 'undefined') {
@@ -22,8 +32,8 @@ function getToken(): string {
 export function getChatSocket(): Socket {
   if (!chatSocket) {
     chatSocket = io(`${getSocketBaseUrl()}/chat`, {
+      ...SOCKET_OPTIONS,
       auth: { token: getToken() },
-      autoConnect: false,
     });
   } else {
     chatSocket.auth = { token: getToken() };
@@ -34,8 +44,8 @@ export function getChatSocket(): Socket {
 export function getMatchmakingSocket(): Socket {
   if (!matchmakingSocket) {
     matchmakingSocket = io(`${getSocketBaseUrl()}/matchmaking`, {
+      ...SOCKET_OPTIONS,
       auth: { token: getToken() },
-      autoConnect: false,
     });
   } else {
     matchmakingSocket.auth = { token: getToken() };
