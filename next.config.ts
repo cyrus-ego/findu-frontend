@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'graph.facebook.com' },
       { protocol: 'http', hostname: 'localhost', port: '3000', pathname: '/uploads/**' },
+      {
+        protocol: 'https',
+        hostname: 'findu-api-production.up.railway.app',
+        pathname: '/uploads/**',
+      },
     ],
   },
 };

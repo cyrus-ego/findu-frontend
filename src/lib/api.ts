@@ -73,7 +73,8 @@ apiClient.interceptors.response.use(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/auth/refresh`,
           { refreshToken },
         );
-        const newTokens = res.data?.data!;
+        const newTokens = res.data?.data;
+        if (!newTokens) throw new Error('Invalid refresh response');
 
         localStorage.setItem('accessToken', newTokens.accessToken);
         localStorage.setItem('refreshToken', newTokens.refreshToken);
