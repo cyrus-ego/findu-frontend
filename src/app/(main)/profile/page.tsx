@@ -34,6 +34,17 @@ export default function ProfilePage() {
     loadProfile();
   }, [loadProfile]);
 
+  useEffect(() => {
+    if (sessionStorage.getItem('oauth-welcome') !== '1') return;
+
+    sessionStorage.removeItem('oauth-welcome');
+    toast({
+      title: 'Đăng nhập thành công!',
+      description: 'Hoàn thiện hồ sơ (giới tính, tuổi) để bắt đầu tìm người tâm sự.',
+    });
+    setIsEditing(true);
+  }, [toast]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">

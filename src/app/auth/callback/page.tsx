@@ -4,19 +4,20 @@ import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/lib/auth-api';
+import { profileApi } from '@/lib/profile-api';
 import { setAuthCookie } from '@/lib/auth-cookie';
 
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setUser } = useAuthStore();
 
   useEffect(() => {
     const accessToken = searchParams.get('accessToken');
     const refreshToken = searchParams.get('refreshToken');
+    const error = searchParams.get('error');
 
-    if (!accessToken || !refreshToken) {
-      router.replace('/login?error=oauth_failed');
+    if (error || !accessToken || !refreshToken) {
+      router.replace(`/login?error=${error || 'oauth_failed'}`);
       return;
     }
 
@@ -26,18 +27,32 @@ function AuthCallbackContent() {
 
     authApi
       .me()
-      .then((user) => {
+      .then(async (user) => {
         useAuthStore.setState({
           user: user as any,
           accessToken,
           refreshToken,
         });
+
+        try {
+          const profile = await profileApi.get();
+          if (!profile.isComplete) {
+            sessionStorage.setItem('oauth-welcome', '1');
+            router.replace('/profile');
+            return;
+          }
+        } catch {
+          sessionStorage.setItem('oauth-welcome', '1');
+          router.replace('/profile');
+          return;
+        }
+
         router.replace('/matchmaking');
       })
       .catch(() => {
         router.replace('/login?error=oauth_failed');
       });
-  }, [searchParams, router, setUser]);
+  }, [searchParams, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -50,7 +65,7 @@ function AuthCallbackContent() {
 }
 
 /**
- * Trang callback nhận tokens từ OAuth redirect.
+ * Trang callback nhận tokens từ OAuth redirect (Google / Facebook).
  * Backend redirect về: /auth/callback?accessToken=...&refreshToken=...
  */
 export default function AuthCallbackPage() {

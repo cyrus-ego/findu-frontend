@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   return (
@@ -13,7 +15,15 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
-      <LoginForm />
+      <Suspense
+        fallback={
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        }
+      >
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
