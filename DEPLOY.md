@@ -1,436 +1,616 @@
-# Hướng dẫn deploy FindU Frontend lên Railway
+# Deploy FindU Frontend len VPS bang Docker
 
-Tài liệu mô tả các bước deploy thực tế đã thực hiện cho project **Next.js 15** này, kèm giải thích từng file cấu hình và cách xử lý lỗi thường gặp.
+Tai lieu nay mo ta quy trinh deploy **FindU Frontend - Next.js 15** len VPS `hai@oc2.lifebow.net` bang Docker Compose, bao gom tao file `.env`, build image, chay container, cau hinh reverse proxy va redeploy.
 
----
-
-## Mục lục
-
-1. [Tổng quan kiến trúc](#1-tổng-quan-kiến-trúc)
-2. [Điều kiện cần có](#2-điều-kiện-cần-có)
-3. [Cấu hình trong repository](#3-cấu-hình-trong-repository)
-4. [Chạy local trước khi deploy](#4-chạy-local-trước-khi-deploy)
-5. [Deploy lên Railway (CLI)](#5-deploy-lên-railway-cli)
-6. [Biến môi trường](#6-biến-môi-trường)
-7. [Sau khi deploy](#7-sau-khi-deploy)
-8. [Deploy lại (redeploy)](#8-deploy-lại-redeploy)
-9. [Lỗi đã gặp khi deploy và cách xử lý](#9-lỗi-đã-gặp-khi-deploy-và-cách-xử-lý)
-10. [Kiểm tra project Railway đang link](#10-kiểm-tra-project-railway-đang-link)
-11. [Tách project riêng (tùy chọn)](#11-tách-project-riêng-tùy-chọn)
+> Trang thai phien deploy ngay 2026-06-22: da deploy thanh cong frontend len VPS bang key `~/.ssh/id_rsa_vps`. Frontend dang chay tai `http://oc2.lifebow.net:3002`, backend dang chay tai `http://oc2.lifebow.net:3001`.
 
 ---
 
-## 1. Tổng quan kiến trúc
+## 1. Tong quan
 
-### URL production (hiện tại)
+Project da co san:
 
-| Thành phần | URL |
-|------------|-----|
-| Frontend | https://findu-frontend-production.up.railway.app |
-| Backend API | https://findu-api-production.up.railway.app |
+| File | Vai tro |
+| --- | --- |
+| `Dockerfile` | Build Next.js standalone image voi Node 20 Alpine |
+| `docker-compose.yml` | Build/chay container frontend tren VPS |
+| `docker-compose.prod.yml` | Chay image da build san tu GHCR tren VPS |
+| `.github/workflows/deploy-vps.yml` | GitHub Actions build/push GHCR va deploy VPS |
+| `.env.example` | Mau bien moi truong can tao thanh `.env` |
+| `next.config.ts` | Bat `output: 'standalone'` va rewrite `/socket.io` ve backend |
 
-### Cách tổ chức trên Railway
-
-Frontend **không** nằm trong project Railway tên `findu-frontend` riêng. Thay vào đó:
-
-- **Project Railway:** `findu-backend`
-- **Service frontend:** `findu-frontend`
-- **Service API (đã có sẵn):** `findu-api`
-- **Database:** MongoDB, Redis (cùng project)
-
-Đây là mô hình **một project – nhiều service**: toàn bộ stack FindU (API, FE, DB) quản lý chung trên một dashboard. Frontend vẫn có domain và deploy độc lập với API.
-
-### Luồng build & chạy
-
-```mermaid
-flowchart LR
-  subgraph build [Docker build stage]
-    A[package.json] --> B[npm ci --legacy-peer-deps]
-    B --> C[next build với NEXT_PUBLIC_*]
-  end
-  subgraph run [Docker production stage]
-    D[.next/standalone + static + public]
-    D --> E[node server.js]
-    E --> F[Railway PORT + public domain]
-  end
-  build --> run
-  F --> G[Browser gọi API qua NEXT_PUBLIC_API_URL]
-  F --> H[Socket qua same-origin + Next rewrite]
-```
-
-- Build dùng **Dockerfile** (không dùng Nixpacks mặc định).
-- `next.config.ts` bật `output: 'standalone'` → image production chạy `node server.js`.
-- Biến `NEXT_PUBLIC_*` phải có **lúc build** (Next.js nhúng vào bundle client).
+Container frontend chay port noi bo `3001` va expose ra host port `3002` de khong trung voi backend dang chay tren host port `3001`. Neu dung Nginx, ben ngoai co the truy cap qua `https://oc2.lifebow.net` va Nginx proxy ve `127.0.0.1:3002`.
 
 ---
 
-## 2. Điều kiện cần có
+## 2. Bien moi truong
 
-| Yêu cầu | Ghi chú |
-|---------|---------|
-| Node.js 20+ | Khớp image Docker `node:20-alpine` |
-| Railway CLI | `brew install railway` hoặc https://docs.railway.com/guides/cli |
-| Đăng nhập Railway | `railway login` |
-| Backend đã chạy | API production sẵn sàng, CORS/OAuth cấu hình đúng |
-| File `.env.local` (local) | Không commit; dùng khi `npm run dev` |
-
----
-
-## 3. Cấu hình trong repository
-
-Các file sau phục vụ deploy (đã thêm/cập nhật khi deploy lần đầu).
-
-### 3.1. `Dockerfile`
-
-**Mục đích:** Build image production hai giai đoạn (builder + runtime).
-
-| Phần | Việc làm |
-|------|----------|
-| **Builder** | `npm ci --legacy-peer-deps` → `npm run build` |
-| **ARG/ENV `NEXT_PUBLIC_*`** | Truyền URL backend vào lúc build (bắt buộc với Next.js) |
-| **Production** | Copy `.next/standalone`, `.next/static`, `public` |
-| **`HOSTNAME=0.0.0.0`** | Container lắng nghe mọi interface (Railway cần) |
-| **`CMD ["node", "server.js"]`** | Chạy server standalone của Next.js |
-
-`--legacy-peer-deps`: project dùng React 19 trong khi một số package (ví dụ `lucide-react`) chưa khai báo peer dependency cho React 19 → `npm ci` thường fail nếu không có flag này.
-
-Railway tự gán biến `PORT` khi chạy container; Next.js standalone đọc `PORT` (không cố định 3001 trên production).
-
-### 3.2. `railway.toml`
-
-**Mục đích:** Báo Railway dùng Dockerfile và cấu hình healthcheck.
-
-```toml
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
-
-[deploy]
-healthcheckPath = "/"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-```
-
-- **healthcheckPath `/`:** Railway gọi trang chủ để biết deploy healthy.
-- **restartPolicyType:** Tự restart khi process crash.
-
-### 3.3. `.dockerignore`
-
-Loại trừ `node_modules`, `.next`, `.git`, `.env*`, v.v. khỏi context upload → build nhanh hơn, tránh lộ secret.
-
-### 3.4. `next.config.ts`
-
-- `output: 'standalone'`: bắt buộc cho Dockerfile hiện tại.
-- `rewrites`: proxy `/socket.io` về backend (browser dùng same-origin, tránh CORS).
-- `images.remotePatterns`: thêm hostname `findu-api-production.up.railway.app` cho ảnh upload từ API.
-
-### 3.5. `public/.gitkeep`
-
-Dockerfile copy thư mục `public/`. Thư mục rỗng vẫn cần tồn tại trong Git để bước `COPY` không lỗi.
-
-### 3.6. `.env.local` (chỉ local)
+Tao file `.env` tren VPS tu `.env.example`.
 
 ```env
-NEXT_PUBLIC_API_URL=https://findu-api-production.up.railway.app/api
-NEXT_PUBLIC_SOCKET_URL=https://findu-api-production.up.railway.app/
-NEXT_PUBLIC_BACKEND_URL=https://findu-api-production.up.railway.app/
+APP_PORT=3002
+PORT=3001
+IMAGE_NAME=ghcr.io/cyrus-ego/findu-frontend
+CONTAINER_NAME=findu-frontend
+
+NEXT_PUBLIC_API_URL=http://oc2.lifebow.net:3001/api
+NEXT_PUBLIC_SOCKET_URL=http://oc2.lifebow.net:3001
+NEXT_PUBLIC_BACKEND_URL=http://oc2.lifebow.net:3001
 ```
 
-File này nằm trong `.gitignore`. Trên Railway, cùng bộ biến được set trên **service** `findu-frontend`.
-
-### 3.7. Sửa code để build production pass
-
-| File | Vấn đề | Cách xử lý |
-|------|--------|------------|
-| `package.json` | Next `15.0.0` bị Railway chặn (CVE) | Nâng `next` và `eslint-config-next` lên `15.0.7` |
-| `src/lib/api.ts` | ESLint `@typescript-eslint/no-non-null-asserted-optional-chain` | Kiểm tra `res.data?.data` thay vì `!` |
-| `src/app/auth/callback/page.tsx` | `useSearchParams()` cần Suspense | Tách `AuthCallbackContent` + bọc `<Suspense>` |
-
----
-
-## 4. Chạy local trước khi deploy
-
-### 4.1. Cài dependency
-
-```bash
-cd /path/to/findu-frontend
-npm install --legacy-peer-deps
-```
-
-### 4.2. Tạo `.env.local`
-
-Copy nội dung mục [3.6](#36-envlocal-chỉ-local) hoặc trỏ về backend local nếu dev full-stack local.
-
-### 4.3. Chạy dev server
-
-```bash
-npm run dev
-```
-
-Mở http://localhost:3001 (port cố định trong `package.json`).
-
-### 4.4. Kiểm tra build production (khuyến nghị)
-
-```bash
-npm run build
-```
-
-Nếu bước này fail trên máy bạn, deploy Railway cũng sẽ fail tương tự (lint, type, prerender).
-
----
-
-## 5. Deploy lên Railway (CLI)
-
-### Bước 1: Đăng nhập
-
-```bash
-railway login
-railway whoami
-```
-
-### Bước 2: Link project và environment
-
-Trong thư mục repo frontend:
-
-```bash
-cd /path/to/findu-frontend
-railway link -p findu-backend -e production
-```
-
-- `-p findu-backend`: project đã chứa service `findu-api` (backend production).
-- `-e production`: environment deploy thật.
-
-Nếu có nhiều service, CLI có thể báo chưa chọn service — bước 3–4 xử lý tiếp.
-
-### Bước 3: Tạo service frontend (lần đầu)
-
-Chỉ cần chạy **một lần** khi chưa có service `findu-frontend`:
-
-```bash
-railway add --service findu-frontend \
-  --variables "NEXT_PUBLIC_API_URL=https://findu-api-production.up.railway.app/api" \
-  --variables "NEXT_PUBLIC_SOCKET_URL=https://findu-api-production.up.railway.app/" \
-  --variables "NEXT_PUBLIC_BACKEND_URL=https://findu-api-production.up.railway.app/"
-```
-
-**Giải thích:**
-
-- Tạo service trống trong project `findu-backend`.
-- Gán luôn 3 biến `NEXT_PUBLIC_*` (Railway đưa vào build Docker và runtime).
-
-### Bước 4: Link service đang deploy
-
-```bash
-railway service link findu-frontend
-```
-
-Mọi lệnh `railway up`, `railway variable`, `railway logs` sau đó áp dụng cho service này.
-
-### Bước 5: Upload và deploy
-
-```bash
-railway up --detach -m "Deploy Next.js frontend"
-```
-
-- Upload source (theo `.dockerignore`).
-- Railway build image từ `Dockerfile`, deploy lên region (ví dụ `sfo`).
-- `--detach`: không treo terminal chờ log; xem log trên dashboard hoặc `railway logs`.
-
-Theo dõi deployment:
-
-```bash
-railway deployment list --json
-railway logs --build --latest -n 100
-```
-
-### Bước 6: Tạo domain public (lần đầu)
-
-```bash
-railway domain
-```
-
-Kết quả deploy thực tế:
-
-```
-https://findu-frontend-production.up.railway.app
-```
-
-Mỗi service Railway thường có **tối đa một** domain `*.up.railway.app` miễn phí (có thể thêm custom domain sau).
-
----
-
-## 6. Biến môi trường
-
-| Biến | Ví dụ production | Vai trò |
-|------|------------------|---------|
-| `NEXT_PUBLIC_API_URL` | `https://findu-api-production.up.railway.app/api` | Axios/fetch gọi REST API |
-| `NEXT_PUBLIC_SOCKET_URL` | `https://findu-api-production.up.railway.app/` | Fallback URL socket (SSR) |
-| `NEXT_PUBLIC_BACKEND_URL` | `https://findu-api-production.up.railway.app/` | Rewrite `/socket.io` trong `next.config.ts`; upload avatar |
-
-**Lưu ý quan trọng:**
-
-- Tiền tố `NEXT_PUBLIC_` → giá trị **nhúng vào bundle client** lúc `next build`.
-- Đổi biến trên Railway dashboard **không** đủ nếu không **build lại** (deploy mới).
-- Không đặt secret vào `NEXT_PUBLIC_*` (client đọc được).
-
-### Xem / sửa biến bằng CLI
-
-```bash
-railway variable list --service findu-frontend
-
-railway variable set NEXT_PUBLIC_API_URL=https://findu-api-production.up.railway.app/api \
-  --service findu-frontend
-```
-
-Sau khi đổi biến `NEXT_PUBLIC_*`, chạy lại `railway up` để rebuild.
-
----
-
-## 7. Sau khi deploy
-
-### 7.1. Kiểm tra nhanh
-
-```bash
-curl -I https://findu-frontend-production.up.railway.app/
-```
-
-Kỳ vọng: `HTTP/2 200`, header `x-powered-by: Next.js`.
-
-### 7.2. Cấu hình backend (bắt buộc cho OAuth)
-
-Trên backend (`findu-api`), thêm redirect URL OAuth:
-
-```
-https://findu-frontend-production.up.railway.app/auth/callback
-```
-
-Và đảm bảo CORS cho phép origin frontend (nếu có gọi cross-origin trực tiếp).
-
-### 7.3. Dashboard Railway
-
-- Project: **findu-backend**
-- Service: **findu-frontend** → tab Deployments, Variables, Metrics, Logs
-
----
-
-## 8. Deploy lại (redeploy)
-
-Sau khi sửa code và đã link đúng service:
-
-```bash
-cd /path/to/findu-frontend
-railway status          # xác nhận project + service
-railway up --detach -m "Mô tả thay đổi ngắn"
-```
-
-Hoặc redeploy bản build hiện tại (không upload code mới):
-
-```bash
-railway service redeploy
+Y nghia cac bien:
+
+| Bien | Y nghia |
+| --- | --- |
+| `APP_PORT` | Port expose tren VPS host; dang dung `3002` cho frontend |
+| `PORT` | Port Next.js standalone lang nghe trong container |
+| `NEXT_PUBLIC_API_URL` | URL REST API, phai co `/api` |
+| `NEXT_PUBLIC_SOCKET_URL` | URL backend socket fallback |
+| `NEXT_PUBLIC_BACKEND_URL` | URL backend dung cho rewrite `/socket.io` va upload/avatar |
+
+Luu y quan trong: cac bien `NEXT_PUBLIC_*` cua Next.js duoc nhung vao client bundle luc build. Moi lan doi cac bien nay phai build lai image.
+
+Neu backend da deploy tren VPS/domain rieng, doi thanh gia tri that, vi du:
+
+```env
+NEXT_PUBLIC_API_URL=https://api.oc2.lifebow.net/api
+NEXT_PUBLIC_SOCKET_URL=https://api.oc2.lifebow.net
+NEXT_PUBLIC_BACKEND_URL=https://api.oc2.lifebow.net
 ```
 
 ---
 
-## 9. Lỗi đã gặp khi deploy và cách xử lý
+## 3. Chuan bi SSH
 
-### 9.1. Railway chặn Next.js 15.0.0 (bảo mật)
-
-**Triệu chứng:** Deploy fail ngay, log báo vulnerability, yêu cầu `next@^15.0.7`.
-
-**Xử lý:** Nâng `next` và `eslint-config-next` trong `package.json`, chạy `npm install --legacy-peer-deps`, commit `package-lock.json`, deploy lại.
-
-### 9.2. ESLint fail khi build
-
-**Triệu chứng:** `Failed to compile` — rule `@typescript-eslint/no-non-null-asserted-optional-chain` tại `src/lib/api.ts`.
-
-**Xử lý:** Không dùng `res.data?.data!`; kiểm tra null rồi `throw`.
-
-### 9.3. `useSearchParams()` thiếu Suspense
-
-**Triệu chứng:** Prerender error tại `/auth/callback`.
-
-**Xử lý:** Tách component dùng `useSearchParams` và bọc bằng `<Suspense fallback={...}>`.
-
-### 9.4. `npm ci` / peer dependency (Docker build)
-
-**Triệu chứng:** Conflict React 19 vs `lucide-react`.
-
-**Xử lý:** `RUN npm ci --legacy-peer-deps` trong Dockerfile (và local `npm install --legacy-peer-deps`).
-
-### 9.5. Healthcheck / container không nhận request
-
-**Triệu chứng:** Deploy success nhưng service unhealthy.
-
-**Kiểm tra:** `HOSTNAME=0.0.0.0` trong stage production; Railway set `PORT` — không hardcode port trong CMD.
-
----
-
-## 10. Kiểm tra project Railway đang link
-
-Trong thư mục repo:
+Tu may local:
 
 ```bash
-railway status
+ssh hai@oc2.lifebow.net
 ```
 
-Kết quả mong đợi (tham khảo):
+Neu gap loi:
 
-```
-Project:         findu-backend
-Environment:     production
-Service:         findu-frontend
-URL:             https://findu-frontend-production.up.railway.app
+```text
+Permission denied (publickey).
 ```
 
-Đổi link sang project/service khác:
+Trong phien nay key dung duoc la:
 
 ```bash
-railway link -p <project-id-hoặc-tên> -e production
-railway service link <tên-service>
+ssh -i ~/.ssh/id_rsa_vps hai@oc2.lifebow.net
 ```
 
----
-
-## 11. Tách project riêng (tùy chọn)
-
-Nếu muốn project Railway tên `findu-frontend` **tách hẳn** khỏi `findu-backend`:
-
-1. `railway init --name findu-frontend`
-2. `railway add --service findu-frontend` + set biến `NEXT_PUBLIC_*`
-3. `railway up` và `railway domain`
-4. Cập nhật OAuth/CORS backend với URL mới
-5. Xóa service `findu-frontend` cũ trong project `findu-backend` (tránh deploy trùng, tốn phí)
-
-Ưu/nhược từng cách xem thêm khi thảo luận kiến trúc (một project nhiều service vs nhiều project).
-
----
-
-## Tóm tắt lệnh (cheat sheet)
+Neu mot may khac gap loi public key, hay them public key cua may deploy vao VPS:
 
 ```bash
-# Local
-npm install --legacy-peer-deps
-npm run dev          # http://localhost:3001
-npm run build        # kiểm tra trước deploy
+cat ~/.ssh/id_ed25519.pub
+```
 
-# Railway – lần đầu
-railway login
-railway link -p findu-backend -e production
-railway add --service findu-frontend --variables "NEXT_PUBLIC_API_URL=..." ...
-railway service link findu-frontend
-railway up --detach
-railway domain
+Copy output vao file tren VPS:
 
-# Railway – lần sau
-railway up --detach
-railway status
-railway logs --build --latest -n 100
+```bash
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+nano ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+Sau do thu lai:
+
+```bash
+ssh hai@oc2.lifebow.net
 ```
 
 ---
 
-## Liên quan
+## 4. Cai Docker tren VPS
 
-- Backend production: https://findu-api-production.up.railway.app
-- Railway Docs: https://docs.railway.com
-- Next.js standalone: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
+Dang nhap VPS:
+
+```bash
+ssh hai@oc2.lifebow.net
+```
+
+Kiem tra Docker:
+
+```bash
+docker --version
+docker compose version
+```
+
+Neu chua co Docker:
+
+```bash
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker hai
+newgrp docker
+```
+
+Kiem tra lai:
+
+```bash
+docker run --rm hello-world
+docker compose version
+```
+
+---
+
+## 5. Dua source code len VPS
+
+Trong phien deploy nay app duoc dat tai `/home/hai/dev/findu-frontend` vi user `hai` khong co sudo non-interactive de tao thu muc trong `/opt`.
+
+```bash
+mkdir -p /home/hai/dev/findu-frontend
+cd /home/hai/dev/findu-frontend
+```
+
+### Cach da dung trong phien nay: rsync tu may local
+
+Chay tren may local, tai thu muc repo:
+
+```bash
+rsync -az \
+  -e 'ssh -i ~/.ssh/id_rsa_vps -o IdentitiesOnly=yes' \
+  --exclude '.git/' \
+  --exclude 'node_modules/' \
+  --exclude '.next/' \
+  --exclude '.env' \
+  --exclude '.env.local' \
+  --exclude 'tsconfig.tsbuildinfo' \
+  --exclude '.DS_Store' \
+  ./ hai@oc2.lifebow.net:/home/hai/dev/findu-frontend/
+```
+
+Neu can gui rieng `.env.example` sau khi exclude qua rong:
+
+```bash
+rsync -az \
+  -e 'ssh -i ~/.ssh/id_rsa_vps -o IdentitiesOnly=yes' \
+  .env.example hai@oc2.lifebow.net:/home/hai/dev/findu-frontend/.env.example
+```
+
+### Cach thay the: clone Git tren VPS
+
+Chi dung cach nay neu code moi da duoc push len GitHub va VPS co quyen clone repo:
+
+```bash
+cd /home/hai/dev/findu-frontend
+git clone git@github.com:cyrus-ego/findu-frontend.git .
+```
+
+---
+
+## 6. Tao file `.env` tren VPS
+
+```bash
+cd /home/hai/dev/findu-frontend
+cp .env.example .env
+nano .env
+```
+
+Noi dung mau neu backend van dung Railway:
+
+```env
+APP_PORT=3002
+PORT=3001
+IMAGE_NAME=findu-frontend
+CONTAINER_NAME=findu-frontend
+
+NEXT_PUBLIC_API_URL=http://oc2.lifebow.net:3001/api
+NEXT_PUBLIC_SOCKET_URL=http://oc2.lifebow.net:3001
+NEXT_PUBLIC_BACKEND_URL=http://oc2.lifebow.net:3001
+```
+
+Khong commit `.env` len Git. File nay da nam trong `.gitignore`.
+
+---
+
+## 7. Build va chay container
+
+Tai thu muc app:
+
+```bash
+cd /home/hai/dev/findu-frontend
+docker compose --env-file .env up -d --build
+```
+
+Kiem tra container:
+
+```bash
+docker compose ps
+docker compose logs -f --tail=100 frontend
+curl -I http://127.0.0.1:3002/
+```
+
+Neu chua dung Nginx, co the truy cap tam:
+
+```text
+http://oc2.lifebow.net:3002
+```
+
+Neu VPS co firewall, mo port 3002:
+
+```bash
+sudo ufw allow 3002/tcp
+sudo ufw status
+```
+
+---
+
+## 8. Cau hinh Nginx reverse proxy
+
+Neu muon dung domain khong kem port, cai Nginx:
+
+```bash
+sudo apt update
+sudo apt install -y nginx
+```
+
+Tao config:
+
+```bash
+sudo nano /etc/nginx/sites-available/findu-frontend
+```
+
+Noi dung:
+
+```nginx
+server {
+    listen 80;
+    server_name oc2.lifebow.net;
+
+    location / {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+Enable site:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/findu-frontend /etc/nginx/sites-enabled/findu-frontend
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Sau do truy cap:
+
+```text
+http://oc2.lifebow.net
+```
+
+---
+
+## 9. Bat HTTPS voi Certbot
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d oc2.lifebow.net
+```
+
+Kiem tra auto-renew:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+Sau khi co HTTPS, frontend public URL la:
+
+```text
+https://oc2.lifebow.net
+```
+
+---
+
+## 10. Cau hinh backend sau khi doi domain
+
+Neu frontend chuyen sang `https://oc2.lifebow.net`, backend can cho phep domain moi.
+
+Can cap nhat:
+
+| Hang muc | Gia tri can them |
+| --- | --- |
+| CORS origin | `https://oc2.lifebow.net` |
+| OAuth callback | `https://oc2.lifebow.net/auth/callback` |
+| Cookie domain/SameSite | Kiem tra neu backend dung cookie cross-site |
+| Socket.IO CORS | `https://oc2.lifebow.net` |
+
+Neu backend van nam o Railway, can set cac bien moi tren service backend roi redeploy backend.
+
+---
+
+## 11. Redeploy khi co code moi
+
+Neu dang deploy theo cach rsync, chay tren may local:
+
+```bash
+cd /Users/hainguyen/dev/findu-frontend
+rsync -az \
+  -e 'ssh -i ~/.ssh/id_rsa_vps -o IdentitiesOnly=yes' \
+  --exclude '.git/' \
+  --exclude 'node_modules/' \
+  --exclude '.next/' \
+  --exclude '.env' \
+  --exclude '.env.local' \
+  --exclude 'tsconfig.tsbuildinfo' \
+  --exclude '.DS_Store' \
+  ./ hai@oc2.lifebow.net:/home/hai/dev/findu-frontend/
+```
+
+Sau do build lai tren VPS:
+
+```bash
+cd /home/hai/dev/findu-frontend
+docker compose --env-file .env up -d --build
+docker compose logs -f --tail=100 frontend
+```
+
+Neu thu muc tren VPS la Git clone day du, co the thay buoc rsync bang `git pull`.
+
+Don image cu neu can:
+
+```bash
+docker image prune -f
+```
+
+---
+
+## 12. GitHub Actions + GHCR auto deploy
+
+Da them workflow:
+
+```text
+.github/workflows/deploy-vps.yml
+```
+
+Workflow nay chay khi push len branch `release1.0.0` hoac bam **Run workflow** thu cong. Luong deploy:
+
+1. Checkout code tren GitHub runner.
+2. Build Docker image bang `Dockerfile`.
+3. Push image len GHCR:
+
+```text
+ghcr.io/cyrus-ego/findu-frontend:latest
+ghcr.io/cyrus-ego/findu-frontend:<git-sha>
+```
+
+4. SSH vao VPS.
+5. Copy `docker-compose.prod.yml` len `/home/hai/dev/findu-frontend`.
+6. Pull image moi tu GHCR va restart container `findu-frontend`.
+
+### 12.1. GitHub Secrets can tao
+
+Vao GitHub repo:
+
+```text
+Settings -> Secrets and variables -> Actions -> Secrets
+```
+
+Tao cac secret:
+
+| Secret | Gia tri |
+| --- | --- |
+| `VPS_SSH_KEY` | Noi dung private key dung de SSH vao VPS, vi du file `~/.ssh/id_rsa_vps` |
+| `VPS_HOST` | `oc2.lifebow.net` |
+| `VPS_USER` | `hai` |
+| `GHCR_READ_TOKEN` | PAT co quyen `read:packages`, chi can neu GHCR package de private |
+| `GHCR_USERNAME` | `cyrus-ego`, chi can neu dung `GHCR_READ_TOKEN` |
+
+Trong workflow hien tai, `VPS_HOST` va `VPS_USER` da co default la `oc2.lifebow.net` va `hai`, nhung nen tao secret de sau nay doi host/user khong can sua file YAML.
+
+Lay private key de copy vao `VPS_SSH_KEY`:
+
+```bash
+cat ~/.ssh/id_rsa_vps
+```
+
+Khong commit private key vao Git.
+
+### 12.2. GitHub Variables nen tao
+
+Vao:
+
+```text
+Settings -> Secrets and variables -> Actions -> Variables
+```
+
+Tao cac variable:
+
+| Variable | Gia tri hien tai |
+| --- | --- |
+| `NEXT_PUBLIC_API_URL` | `http://oc2.lifebow.net:3001/api` |
+| `NEXT_PUBLIC_SOCKET_URL` | `http://oc2.lifebow.net:3001` |
+| `NEXT_PUBLIC_BACKEND_URL` | `http://oc2.lifebow.net:3001` |
+
+Workflow co default cho 3 bien nay, nhung tao Variables giup doi backend URL ma khong can sua workflow.
+
+### 12.3. Quyen GHCR
+
+Workflow dung `GITHUB_TOKEN` de push image len GHCR. File workflow da khai bao:
+
+```yaml
+permissions:
+  contents: read
+  packages: write
+```
+
+Neu GHCR package la private, VPS can login GHCR truoc khi pull image. Tao `GHCR_READ_TOKEN` la GitHub Personal Access Token co scope:
+
+```text
+read:packages
+```
+
+Neu muon don gian hon, co the doi package `findu-frontend` tren GHCR sang public, khi do khong can `GHCR_READ_TOKEN`.
+
+### 12.4. Kiem tra deploy tu GitHub
+
+Sau khi push code:
+
+```bash
+git push origin release1.0.0
+```
+
+Vao GitHub:
+
+```text
+Actions -> Deploy frontend to VPS
+```
+
+Khi workflow thanh cong, kiem tra:
+
+```bash
+curl -I http://oc2.lifebow.net:3002/
+```
+
+Tren VPS:
+
+```bash
+ssh -i ~/.ssh/id_rsa_vps hai@oc2.lifebow.net
+cd /home/hai/dev/findu-frontend
+docker compose --env-file .env -f docker-compose.prod.yml ps
+docker compose --env-file .env -f docker-compose.prod.yml logs --tail=100 frontend
+```
+
+---
+
+## 13. Doi bien moi truong
+
+Sua `.env`:
+
+```bash
+cd /home/hai/dev/findu-frontend
+nano .env
+```
+
+Neu deploy bang GitHub Actions, sua GitHub Variables `NEXT_PUBLIC_*` roi chay lai workflow. Vi `NEXT_PUBLIC_*` can co luc build, chi restart container la chua du.
+
+Neu build truc tiep tren VPS, build lai image:
+
+```bash
+docker compose --env-file .env up -d --build
+```
+
+---
+
+## 14. Lenh quan tri nhanh
+
+```bash
+# Xem trang thai
+docker compose ps
+
+# Xem log
+docker compose logs -f --tail=100 frontend
+
+# Restart
+docker compose restart frontend
+
+# Stop
+docker compose down
+
+# Build lai khong dung cache
+docker compose build --no-cache frontend
+docker compose up -d
+```
+
+---
+
+## 15. Troubleshooting
+
+### SSH bi `Permission denied (publickey)`
+
+Public key hien tai chua duoc them vao user `hai` tren VPS. Them key vao:
+
+```text
+/home/hai/.ssh/authorized_keys
+```
+
+### Container build fail o `npm ci`
+
+Dockerfile dang dung:
+
+```bash
+npm ci --legacy-peer-deps
+```
+
+Neu fail, xem log:
+
+```bash
+docker compose build --no-cache frontend
+```
+
+### Website khong vao duoc port 3002
+
+Kiem tra container co dang chay khong:
+
+```bash
+docker compose ps
+curl -I http://127.0.0.1:3002/
+```
+
+Kiem tra firewall/security group:
+
+```bash
+sudo ufw status
+sudo ufw allow 3002/tcp
+```
+
+Neu da dung Nginx thi khong can public port 3002 ra internet, chi can Nginx proxy duoc ve `127.0.0.1:3002`.
+
+### Socket.IO khong connect
+
+Kiem tra:
+
+- `NEXT_PUBLIC_BACKEND_URL` tro dung backend public URL.
+- Nginx co header `Upgrade` va `Connection "upgrade"`.
+- Backend cho phep CORS/Socket.IO origin `https://oc2.lifebow.net`.
+- Sau khi sua `.env`, da chay lai `docker compose up -d --build`.
+
+### Doi `.env` nhung frontend van goi URL cu
+
+Day la hanh vi binh thuong cua Next.js voi `NEXT_PUBLIC_*`. Can build lai image:
+
+```bash
+docker compose --env-file .env up -d --build
+```
+
+### GitHub Actions pull GHCR bi denied
+
+Neu log deploy tren GitHub bao loi pull image tu `ghcr.io`, kiem tra:
+
+- Package GHCR co public khong.
+- Neu package private, da tao `GHCR_READ_TOKEN` co scope `read:packages` chua.
+- `GHCR_USERNAME` dung owner co quyen doc package chua.
+
+### GitHub Actions SSH fail
+
+Kiem tra:
+
+- `VPS_SSH_KEY` la private key, khong phai `.pub`.
+- Public key tuong ung da co trong `/home/hai/.ssh/authorized_keys`.
+- Secret `VPS_HOST=oc2.lifebow.net`, `VPS_USER=hai`.
+- Key khong co passphrase, hoac dung deploy key rieng khong passphrase cho CI.
+
+---
+
+## 16. Checklist deploy
+
+1. SSH vao duoc `hai@oc2.lifebow.net`.
+2. Docker va Docker Compose da cai tren VPS.
+3. Source code nam tai `/home/hai/dev/findu-frontend`.
+4. File `.env` da tao tu `.env.example` va dien dung backend URL.
+5. Da chay `docker compose --env-file .env up -d --build`.
+6. `curl -I http://127.0.0.1:3002/` tra ve HTTP 200/3xx.
+7. `curl -I http://oc2.lifebow.net:3002/` tra ve HTTP 200/3xx.
+8. Neu muon dung domain khong kem port, Nginx proxy domain `oc2.lifebow.net` ve `127.0.0.1:3002`.
+9. Neu bat HTTPS, backend can cap nhat CORS/OAuth callback cho domain moi.
+10. GitHub Actions co `VPS_SSH_KEY` va Variables `NEXT_PUBLIC_*`.
+11. GHCR image `ghcr.io/cyrus-ego/findu-frontend:latest` pull duoc tu VPS.

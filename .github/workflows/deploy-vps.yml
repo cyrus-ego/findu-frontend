@@ -1,0 +1,97 @@
+name: Deploy frontend to VPS
+
+on:
+  push:
+    branches:
+      - release1.0.0
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: cyrus-ego/findu-frontend
+  IMAGE_TAG: latest
+  VPS_APP_DIR: /home/hai/dev/findu-frontend
+  VPS_HOST: ${{ secrets.VPS_HOST || 'oc2.lifebow.net' }}
+  VPS_USER: ${{ secrets.VPS_USER || 'hai' }}
+  NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://oc2.lifebow.net:3001/api' }}
+  NEXT_PUBLIC_SOCKET_URL: ${{ vars.NEXT_PUBLIC_SOCKET_URL || 'http://oc2.lifebow.net:3001' }}
+  NEXT_PUBLIC_BACKEND_URL: ${{ vars.NEXT_PUBLIC_BACKEND_URL || 'http://oc2.lifebow.net:3001' }}
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-frontend-vps
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image output
+        id: image
+        run: echo "image=${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_SOCKET_URL=${{ env.NEXT_PUBLIC_SOCKET_URL }}
+            NEXT_PUBLIC_BACKEND_URL=${{ env.NEXT_PUBLIC_BACKEND_URL }}
+
+  deploy:
+    name: Deploy on VPS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Checkout deploy files
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H "${VPS_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Copy production compose file
+        run: |
+          ssh -i ~/.ssh/vps_key "${VPS_USER}@${VPS_HOST}" "mkdir -p '${VPS_APP_DIR}'"
+          scp -i ~/.ssh/vps_key docker-compose.prod.yml "${VPS_USER}@${VPS_HOST}:${VPS_APP_DIR}/docker-compose.prod.yml"
+
+      - name: Pull image and restart container
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME || github.repository_owner }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        run: |
+          ssh -i ~/.ssh/vps_key "${VPS_USER}@${VPS_HOST}" \
+            "cd '${VPS_APP_DIR}' && \
+             if [ -n '${GHCR_READ_TOKEN}' ]; then echo '${GHCR_READ_TOKEN}' | docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin; fi && \
+             IMAGE_NAME='${REGISTRY}/${IMAGE_NAME}' IMAGE_TAG='${IMAGE_TAG}' docker compose --env-file .env -f docker-compose.prod.yml pull frontend && \
+             IMAGE_NAME='${REGISTRY}/${IMAGE_NAME}' IMAGE_TAG='${IMAGE_TAG}' docker compose --env-file .env -f docker-compose.prod.yml up -d frontend && \
+             docker image prune -f"
