@@ -590,6 +590,22 @@ Neu log deploy tren GitHub bao loi pull image tu `ghcr.io`, kiem tra:
 - Neu package private, da tao `GHCR_READ_TOKEN` co scope `read:packages` chua.
 - `GHCR_USERNAME` dung owner co quyen doc package chua.
 
+### GitHub Actions bao `no matching manifest for linux/arm64/v8`
+
+VPS `oc2.lifebow.net` dang chay CPU ARM64 (`aarch64`). Workflow phai build image cho platform `linux/arm64`:
+
+```yaml
+- name: Set up QEMU
+  uses: docker/setup-qemu-action@v3
+
+- name: Build and push Docker image
+  uses: docker/build-push-action@v6
+  with:
+    platforms: linux/arm64
+```
+
+Sau khi sua workflow, push lai branch `release1.0.0` hoac bam **Re-run jobs** tren GitHub Actions de build lai image GHCR dung architecture.
+
 ### GitHub Actions SSH fail
 
 Kiem tra:
