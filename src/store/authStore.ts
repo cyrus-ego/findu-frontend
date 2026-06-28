@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { authApi } from '@/lib/auth-api';
 import { setAuthCookie, clearAuthCookie } from '@/lib/auth-cookie';
 import type { User } from '@/types/user.types';
+import type { Gender } from '@/lib/profile-api';
 
 interface AuthState {
   user: User | null;
@@ -10,9 +11,10 @@ interface AuthState {
   refreshToken: string | null;
   /** Email đang chờ xác thực OTP */
   pendingEmail: string | null;
+  pendingGender: Gender | null;
 
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string, gender: string) => Promise<void>;
+  register: (email: string, password: string, displayName: string, gender: Gender) => Promise<void>;
   verifyEmail: (email: string, otp: string) => Promise<void>;
   resendOtp: (email: string) => Promise<void>;
   logout: () => void;
@@ -22,15 +24,16 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       refreshToken: null,
       pendingEmail: null,
+      pendingGender: null,
 
       register: async (email, password, displayName, gender) => {
         await authApi.register({ email, password, displayName, gender });
-        set({ pendingEmail: email });
+        set({ pendingEmail: email, pendingGender: gender });
       },
 
       login: async (email, password) => {
@@ -43,14 +46,21 @@ export const useAuthStore = create<AuthState>()(
 
       verifyEmail: async (email, otp) => {
         const res = await authApi.verifyEmail({ email, otp });
+        const pendingGender = get().pendingGender;
+        const user = {
+          ...res.user,
+          gender: res.user.gender ?? pendingGender ?? undefined,
+        } as User;
+
         localStorage.setItem('accessToken', res.accessToken);
         localStorage.setItem('refreshToken', res.refreshToken);
         setAuthCookie(res.accessToken);
         set({
-          user: res.user as User,
+          user,
           accessToken: res.accessToken,
           refreshToken: res.refreshToken,
           pendingEmail: null,
+          pendingGender: null,
         });
       },
 
@@ -62,7 +72,13 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         clearAuthCookie();
-        set({ user: null, accessToken: null, refreshToken: null, pendingEmail: null });
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          pendingEmail: null,
+          pendingGender: null,
+        });
       },
 
       setUser: (user) => set({ user }),
@@ -75,6 +91,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         pendingEmail: state.pendingEmail,
+        pendingGender: state.pendingGender,
       }),
     },
   ),

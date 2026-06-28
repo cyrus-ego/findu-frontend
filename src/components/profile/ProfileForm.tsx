@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { profileApi, getAvatarUrl, type ProfileData } from '@/lib/profile-api';
+import { profileApi, getAvatarUrl, type Gender, type ProfileData } from '@/lib/profile-api';
 import { useAuthStore } from '@/store/authStore';
 
 const schema = z.object({
@@ -27,6 +27,30 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+const getOppositeGender = (gender?: Gender): Gender | undefined => {
+  if (gender === 'male') return 'female';
+  if (gender === 'female') return 'male';
+  return undefined;
+};
+
+const getInitialGender = (initialData: ProfileData, authGender?: Gender | null) =>
+  initialData.profile?.gender ?? initialData.user.gender ?? authGender ?? undefined;
+
+const getFormDefaults = (initialData: ProfileData, authGender?: Gender | null) => {
+  const hasProfile = !!initialData.profile;
+  const gender = getInitialGender(initialData, authGender);
+  const oppositeGender = getOppositeGender(gender);
+
+  return {
+    displayName: initialData.user.displayName,
+    gender,
+    age: initialData.profile?.age,
+    bio: initialData.profile?.bio || '',
+    chatPreference: hasProfile ? initialData.profile?.chatPreference || 'any' : 'opposite',
+    preferredGender: hasProfile ? initialData.profile?.preferredGender : oppositeGender,
+  };
+};
+
 interface Props {
   initialData: ProfileData;
   onSaved: (data: ProfileData) => void;
@@ -35,7 +59,8 @@ interface Props {
 
 export function ProfileForm({ initialData, onSaved, onCancel }: Props) {
   const { toast } = useToast();
-  const { setUser } = useAuthStore();
+  const { setUser, user, pendingGender } = useAuthStore();
+  const authGender = user?.gender ?? pendingGender;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState(
     getAvatarUrl(initialData.profile?.avatar || initialData.user.avatar),
@@ -51,27 +76,13 @@ export function ProfileForm({ initialData, onSaved, onCancel }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      displayName: initialData.user.displayName,
-      gender: initialData.profile?.gender,
-      age: initialData.profile?.age,
-      bio: initialData.profile?.bio || '',
-      chatPreference: initialData.profile?.chatPreference || 'any',
-      preferredGender: initialData.profile?.preferredGender,
-    },
+    defaultValues: getFormDefaults(initialData, authGender),
   });
 
   useEffect(() => {
-    reset({
-      displayName: initialData.user.displayName,
-      gender: initialData.profile?.gender,
-      age: initialData.profile?.age,
-      bio: initialData.profile?.bio || '',
-      chatPreference: initialData.profile?.chatPreference || 'any',
-      preferredGender: initialData.profile?.preferredGender,
-    });
+    reset(getFormDefaults(initialData, authGender));
     setAvatarPreview(getAvatarUrl(initialData.profile?.avatar || initialData.user.avatar));
-  }, [initialData, reset]);
+  }, [authGender, initialData, reset]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -175,7 +186,7 @@ export function ProfileForm({ initialData, onSaved, onCancel }: Props) {
 
       <div className="space-y-2">
         <Label>Giới tính</Label>
-        <select {...register('gender')} className={selectClass} defaultValue="">
+        <select {...register('gender')} className={selectClass}>
           <option value="" disabled>
             -- Chọn giới tính --
           </option>
@@ -215,7 +226,7 @@ export function ProfileForm({ initialData, onSaved, onCancel }: Props) {
 
       <div className="space-y-2">
         <Label>Giới tính đối phương ưu tiên (tuỳ chọn)</Label>
-        <select {...register('preferredGender')} className={selectClass} defaultValue="">
+        <select {...register('preferredGender')} className={selectClass}>
           <option value="">Không chọn</option>
           <option value="male">Nam</option>
           <option value="female">Nữ</option>

@@ -9,6 +9,7 @@ export interface ProfileData {
     email: string;
     displayName: string;
     avatar: string;
+    gender?: Gender;
     role: string;
     isEmailVerified: boolean;
   };
