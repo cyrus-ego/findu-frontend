@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server';
 const PUBLIC_ROUTES = ['/', '/login', '/register', '/verify-email', '/auth/callback'];
 
 /** Routes chỉ dành cho guest (chưa đăng nhập) */
-const GUEST_ONLY_ROUTES = ['/login', '/register', '/verify-email'];
+const GUEST_ONLY_ROUTES = ['/login', '/register'];
 
 /**
  * Routes mà user đang trong phòng chat KHÔNG được phép vào.
@@ -68,4 +68,3 @@ export const config = {
   // Áp dụng middleware cho tất cả routes trừ static files và API
   matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
 };
-

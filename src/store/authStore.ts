@@ -12,6 +12,7 @@ interface AuthState {
   /** Email đang chờ xác thực OTP */
   pendingEmail: string | null;
   pendingGender: Gender | null;
+  hasHydrated: boolean;
 
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string, gender: Gender) => Promise<void>;
@@ -20,6 +21,8 @@ interface AuthState {
   logout: () => void;
   setUser: (user: User) => void;
   setPendingEmail: (email: string | null) => void;
+  setPendingVerification: (email: string | null, gender?: Gender | null) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -30,6 +33,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       pendingEmail: null,
       pendingGender: null,
+      hasHydrated: false,
 
       register: async (email, password, displayName, gender) => {
         await authApi.register({ email, password, displayName, gender });
@@ -83,6 +87,9 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user) => set({ user }),
       setPendingEmail: (email) => set({ pendingEmail: email }),
+      setPendingVerification: (email, gender = null) =>
+        set({ pendingEmail: email, pendingGender: gender }),
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
     }),
     {
       name: 'auth-storage',
@@ -93,6 +100,9 @@ export const useAuthStore = create<AuthState>()(
         pendingEmail: state.pendingEmail,
         pendingGender: state.pendingGender,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Users, Loader2, Clock, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMatchmaking } from '@/hooks/useMatchmaking';
 import { useToast } from '@/hooks/use-toast';
-import type { ChatPreference, Gender } from '@/lib/profile-api';
+import { profileApi, type ChatPreference, type Gender } from '@/lib/profile-api';
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -32,6 +32,33 @@ export function MatchmakingPanel() {
   const [preference, setPreference] = useState<ChatPreference>('any');
   const [preferredGender, setPreferredGender] = useState<Gender | ''>('');
   const [isJoining, setIsJoining] = useState(false);
+  const [isLoadingProfileSettings, setIsLoadingProfileSettings] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfileSettings = async () => {
+      try {
+        const result = await profileApi.get();
+        if (!isMounted || !result.profile) return;
+
+        setPreference(result.profile.chatPreference || 'any');
+        setPreferredGender(result.profile.preferredGender || '');
+      } catch {
+        // Search still validates profile completeness and auth errors through joinQueue.
+      } finally {
+        if (isMounted) {
+          setIsLoadingProfileSettings(false);
+        }
+      }
+    };
+
+    loadProfileSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSearch = async () => {
     setIsJoining(true);
@@ -81,6 +108,7 @@ export function MatchmakingPanel() {
               value={preference}
               onChange={(e) => setPreference(e.target.value as ChatPreference)}
               className={selectClass}
+              disabled={isLoadingProfileSettings}
             >
               <option value="any">Bất kỳ ai (Any)</option>
               <option value="opposite">Giới tính ngược lại (Opposite)</option>
@@ -94,6 +122,7 @@ export function MatchmakingPanel() {
               value={preferredGender}
               onChange={(e) => setPreferredGender(e.target.value as Gender | '')}
               className={selectClass}
+              disabled={isLoadingProfileSettings}
             >
               <option value="">Bất kỳ</option>
               <option value="male">Nam</option>
@@ -108,7 +137,7 @@ export function MatchmakingPanel() {
             size="lg"
             className="w-full rounded-full"
             onClick={handleSearch}
-            disabled={isJoining}
+            disabled={isJoining || isLoadingProfileSettings}
           >
             {isJoining ? 'Đang kết nối...' : 'Tìm người tâm sự'}
           </Button>

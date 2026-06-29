@@ -35,7 +35,7 @@ type FormData = z.infer<typeof schema>;
 
 export function RegisterForm() {
   const router = useRouter();
-  const { register: registerUser } = useAuthStore();
+  const { register: registerUser, setPendingVerification } = useAuthStore();
   const { toast } = useToast();
 
   const {
@@ -47,12 +47,23 @@ export function RegisterForm() {
   const onSubmit = async (data: FormData) => {
     try {
       await registerUser(data.email, data.password, data.displayName, data.gender);
+      setPendingVerification(data.email, data.gender);
       toast({
         title: 'Đăng ký thành công!',
         description: 'Kiểm tra email để lấy mã OTP xác thực.',
       });
       router.push('/verify-email');
     } catch (err: any) {
+      if (shouldOpenVerifyEmail(err)) {
+        setPendingVerification(data.email, data.gender);
+        toast({
+          title: 'Vui lòng xác thực email',
+          description: 'Kiểm tra email để lấy mã OTP xác thực.',
+        });
+        router.push('/verify-email');
+        return;
+      }
+
       toast({
         variant: 'destructive',
         title: 'Đăng ký thất bại',
@@ -135,5 +146,28 @@ export function RegisterForm() {
         </Link>
       </p>
     </div>
+  );
+}
+
+function shouldOpenVerifyEmail(err: any) {
+  const errorText = [
+    err?.code,
+    err?.message,
+    ...(Array.isArray(err?.errors)
+      ? err.errors.flatMap((fieldError: { field?: string; message?: string }) => [
+          fieldError.field,
+          fieldError.message,
+        ])
+      : []),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return (
+    errorText.includes('otp') ||
+    errorText.includes('verify') ||
+    errorText.includes('verification') ||
+    errorText.includes('xác thực')
   );
 }

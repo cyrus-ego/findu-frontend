@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
-  const { pendingEmail, user } = useAuthStore();
+  const { pendingEmail, user, hasHydrated } = useAuthStore();
 
   // Nếu đã đăng nhập (xác thực xong), redirect
   useEffect(() => {
@@ -16,7 +16,15 @@ export default function VerifyEmailPage() {
     }
   }, [user, router]);
 
-  // Nếu không có email đang chờ xác thực, redirect về register
+  if (!hasHydrated) {
+    return (
+      <div className="w-full max-w-sm space-y-4 text-center">
+        <p className="text-muted-foreground">Đang tải thông tin xác thực...</p>
+      </div>
+    );
+  }
+
+  // Nếu không có email đang chờ xác thực, yêu cầu user đăng ký lại
   if (!pendingEmail) {
     return (
       <div className="w-full max-w-sm space-y-4 text-center">
