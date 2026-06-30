@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "docker:publish": "bash scripts/docker-build-push.sh",
+    "docker:build": "bash scripts/docker-build-push.sh --load",
+    "rerun_image": "bash scripts/rerun-image.sh"
   },
   "dependencies": {
     "next": "15.0.7",
