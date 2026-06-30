@@ -12,7 +12,7 @@ export default function VerifyEmailPage() {
   // Nếu đã đăng nhập (xác thực xong), redirect
   useEffect(() => {
     if (user?.isEmailVerified) {
-      router.replace('/profile');
+      router.replace('/matchmaking');
     }
   }, [user, router]);
 

@@ -13,11 +13,12 @@ type ToasterToast = ToastProps & {
   action?: React.ReactElement;
 };
 
-type ErrorDialog = {
-  id: string;
-  title?: React.ReactNode;
-  description?: React.ReactNode;
-};
+const actionTypes = {
+  ADD_TOAST: 'ADD_TOAST',
+  UPDATE_TOAST: 'UPDATE_TOAST',
+  DISMISS_TOAST: 'DISMISS_TOAST',
+  REMOVE_TOAST: 'REMOVE_TOAST',
+} as const;
 
 let count = 0;
 function genId() {
@@ -29,13 +30,10 @@ type Action =
   | { type: 'ADD_TOAST'; toast: ToasterToast }
   | { type: 'UPDATE_TOAST'; toast: Partial<ToasterToast> }
   | { type: 'DISMISS_TOAST'; toastId?: string }
-  | { type: 'REMOVE_TOAST'; toastId?: string }
-  | { type: 'SHOW_ERROR_DIALOG'; dialog: ErrorDialog }
-  | { type: 'HIDE_ERROR_DIALOG'; dialogId?: string };
+  | { type: 'REMOVE_TOAST'; toastId?: string };
 
 interface State {
   toasts: ToasterToast[];
-  errorDialog: ErrorDialog | null;
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
@@ -79,18 +77,11 @@ function reducer(state: State, action: Action): State {
           ? state.toasts.filter((t) => t.id !== action.toastId)
           : [],
       };
-    case 'SHOW_ERROR_DIALOG':
-      return { ...state, errorDialog: action.dialog };
-    case 'HIDE_ERROR_DIALOG':
-      if (action.dialogId && state.errorDialog?.id !== action.dialogId) {
-        return state;
-      }
-      return { ...state, errorDialog: null };
   }
 }
 
 const listeners: Array<(state: State) => void> = [];
-let memoryState: State = { toasts: [], errorDialog: null };
+let memoryState: State = { toasts: [] };
 
 function dispatch(action: Action) {
   memoryState = reducer(memoryState, action);
@@ -101,20 +92,6 @@ type Toast = Omit<ToasterToast, 'id'>;
 
 function toast(props: Toast) {
   const id = genId();
-
-  if (props.variant === 'destructive') {
-    const dismiss = () => dispatch({ type: 'HIDE_ERROR_DIALOG', dialogId: id });
-    dispatch({
-      type: 'SHOW_ERROR_DIALOG',
-      dialog: {
-        id,
-        title: props.title || 'Có lỗi xảy ra',
-        description: props.description,
-      },
-    });
-    return { id, dismiss };
-  }
-
   const dismiss = () => dispatch({ type: 'DISMISS_TOAST', toastId: id });
   dispatch({ type: 'ADD_TOAST', toast: { ...props, id, open: true, onOpenChange: (o) => { if (!o) dismiss(); } } });
   return { id, dismiss };
@@ -126,12 +103,7 @@ function useToast() {
     listeners.push(setState);
     return () => { listeners.splice(listeners.indexOf(setState), 1); };
   }, []);
-  return {
-    ...state,
-    toast,
-    dismiss: (id?: string) => dispatch({ type: 'DISMISS_TOAST', toastId: id }),
-    dismissError: (id?: string) => dispatch({ type: 'HIDE_ERROR_DIALOG', dialogId: id }),
-  };
+  return { ...state, toast, dismiss: (id?: string) => dispatch({ type: 'DISMISS_TOAST', toastId: id }) };
 }
 
 export { useToast, toast };
