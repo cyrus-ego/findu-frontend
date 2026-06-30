@@ -72,7 +72,8 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
     try {
       await verifyEmail(email, code);
       toast({ title: 'Email đã được xác thực!', description: 'Chào mừng bạn đến StrangerConfide.' });
-      router.push('/matchmaking');
+      sessionStorage.setItem('profile-edit-after-verify', '1');
+      router.push('/profile');
     } catch (err: any) {
       toast({
         variant: 'destructive',

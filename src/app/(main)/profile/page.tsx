@@ -35,6 +35,11 @@ export default function ProfilePage() {
   }, [loadProfile]);
 
   useEffect(() => {
+    if (sessionStorage.getItem('profile-edit-after-verify') === '1') {
+      sessionStorage.removeItem('profile-edit-after-verify');
+      setIsEditing(true);
+    }
+
     if (sessionStorage.getItem('oauth-welcome') !== '1') return;
 
     sessionStorage.removeItem('oauth-welcome');
