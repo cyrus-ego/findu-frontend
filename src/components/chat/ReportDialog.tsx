@@ -89,7 +89,7 @@ export function ReportDialog({ open, onClose, roomId, reportedUserId }: Props) {
               ))}
             </div>
             <textarea
-              className="mt-3 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              className="mt-3 w-full rounded-lg border bg-background px-3 py-2 text-base md:text-sm"
               rows={3}
               placeholder="Mô tả thêm (tuỳ chọn)"
               maxLength={500}

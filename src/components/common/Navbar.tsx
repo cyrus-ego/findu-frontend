@@ -13,16 +13,19 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 font-bold text-primary">
+        <Link href="/" className="flex min-w-0 items-center gap-2 font-bold text-primary">
           <MessageCircle className="h-5 w-5" />
-          StrangerConfide
+          <span className="hidden sm:inline">StrangerConfide</span>
         </Link>
 
         <nav className="flex items-center gap-2">
           {user ? (
             <>
               <Button asChild variant="ghost" size="sm">
-                <Link href="/matchmaking">Tìm người tâm sự</Link>
+                <Link href="/matchmaking">
+                  <MessageCircle className="h-4 w-4 sm:hidden" />
+                  <span className="hidden sm:inline">Tìm người tâm sự</span>
+                </Link>
               </Button>
               <Button asChild variant="ghost" size="icon">
                 <Link href="/profile">

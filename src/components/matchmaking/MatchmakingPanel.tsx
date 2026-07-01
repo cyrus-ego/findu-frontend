@@ -94,7 +94,7 @@ export function MatchmakingPanel() {
   };
 
   const selectClass =
-    'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+    'w-full rounded-md border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm';
 
   return (
     <div className="w-full max-w-md space-y-8 text-center">

@@ -55,9 +55,9 @@ export function ChatRoom({ roomId }: Props) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-16 z-40 flex flex-col bg-background">
+    <div className="fixed inset-x-0 top-16 z-40 flex h-[calc(100dvh-4rem)] max-w-full flex-col overflow-hidden bg-background">
       {/* Header */}
-      <header className="safe-top flex shrink-0 items-center justify-between border-b border-border/60 bg-card/80 px-3 py-3 backdrop-blur-md sm:px-4">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-card/80 px-3 py-3 backdrop-blur-md sm:px-4">
         <div className="flex min-w-0 items-center gap-3">
           {partnerAvatar ? (
             <img
@@ -118,7 +118,7 @@ export function ChatRoom({ roomId }: Props) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
             {myAvatar && (
@@ -138,7 +138,7 @@ export function ChatRoom({ roomId }: Props) {
       </div>
 
       {roomClosed ? (
-        <div className="safe-bottom shrink-0 border-t border-border/60 bg-card/80 p-4 backdrop-blur-md">
+        <div className="safe-bottom shrink-0 border-t border-border/60 bg-card/80 p-4 [--safe-bottom-padding:1rem] backdrop-blur-md">
           <p className="mb-3 text-center text-sm text-muted-foreground">
             Cuộc trò chuyện đã kết thúc
           </p>

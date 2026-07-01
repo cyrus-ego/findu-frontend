@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/common/ThemeProvider';
 import { Toaster } from '@/components/ui/toaster';
@@ -9,6 +9,11 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   title: 'StrangerConfide - Tâm sự với người lạ',
   description: 'Ứng dụng chat ẩn danh an toàn, kết nối những tâm hồn cần được lắng nghe.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

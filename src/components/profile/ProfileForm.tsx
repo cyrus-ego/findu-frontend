@@ -139,7 +139,7 @@ export function ProfileForm({ initialData, onSaved, onCancel }: Props) {
   };
 
   const selectClass =
-    'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+    'w-full rounded-md border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm';
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border p-6">

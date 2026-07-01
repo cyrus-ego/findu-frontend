@@ -76,7 +76,7 @@ export function MessageInput({ onSend, onSendImage, onTyping, disabled }: Props)
           }}
           onKeyDown={handleKeyDown}
           placeholder={disabled ? 'Cuộc trò chuyện đã kết thúc' : 'Nhập tin nhắn...'}
-          className="min-h-[44px] flex-1 rounded-2xl border-border/60 bg-background"
+          className="min-h-[44px] flex-1 rounded-2xl border-border/60 bg-background text-base md:text-sm"
           maxLength={1000}
           disabled={disabled}
         />
