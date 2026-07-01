@@ -3,9 +3,9 @@ set -euo pipefail
 
 IMAGE_NAME="${IMAGE_NAME:-ghcr.io/cyrus-ego/findu-frontend}"
 PLATFORM="${PLATFORM:-linux/arm64}"
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://oc2.lifebow.net:3001/api}"
-NEXT_PUBLIC_SOCKET_URL="${NEXT_PUBLIC_SOCKET_URL:-http://oc2.lifebow.net:3001}"
-NEXT_PUBLIC_BACKEND_URL="${NEXT_PUBLIC_BACKEND_URL:-http://oc2.lifebow.net:3001}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://api.chatvn.online/api}"
+NEXT_PUBLIC_SOCKET_URL="${NEXT_PUBLIC_SOCKET_URL:-https://api.chatvn.online}"
+NEXT_PUBLIC_BACKEND_URL="${NEXT_PUBLIC_BACKEND_URL:-https://api.chatvn.online}"
 TAG_SHA="${TAG_SHA:-$(git rev-parse HEAD)}"
 OUTPUT_MODE="--push"
 

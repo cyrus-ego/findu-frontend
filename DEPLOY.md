@@ -2,7 +2,7 @@
 
 Tai lieu nay mo ta quy trinh deploy **FindU Frontend - Next.js 15** len VPS `hai@oc2.lifebow.net` bang Docker Compose, bao gom tao file `.env`, build image, chay container, cau hinh reverse proxy va redeploy.
 
-> Trang thai phien deploy ngay 2026-06-22: da deploy thanh cong frontend len VPS bang key `~/.ssh/id_rsa_vps`. Frontend dang chay tai `http://oc2.lifebow.net:3002`, backend dang chay tai `http://oc2.lifebow.net:3001`.
+> Trang thai hien tai: frontend public chay tai `https://chatvn.online`, backend/API public chay tai `https://api.chatvn.online`. Tren VPS, Nginx proxy frontend ve `127.0.0.1:3002` va API ve `127.0.0.1:3001`.
 
 ---
 
@@ -19,7 +19,7 @@ Project da co san:
 | `.env.example` | Mau bien moi truong can tao thanh `.env` |
 | `next.config.ts` | Bat `output: 'standalone'` va rewrite `/socket.io` ve backend |
 
-Container frontend chay port noi bo `3001` va expose ra host port `3002` de khong trung voi backend dang chay tren host port `3001`. Neu dung Nginx, ben ngoai co the truy cap qua `https://oc2.lifebow.net` va Nginx proxy ve `127.0.0.1:3002`.
+Container frontend chay port noi bo `3001` va expose ra host port `3002` de khong trung voi backend dang chay tren host port `3001`. Nginx nhan request HTTPS tu `https://chatvn.online` va proxy ve `127.0.0.1:3002`. API public la `https://api.chatvn.online`, Nginx proxy ve backend tren `127.0.0.1:3001`.
 
 ---
 
@@ -33,9 +33,9 @@ PORT=3001
 IMAGE_NAME=ghcr.io/cyrus-ego/findu-frontend
 CONTAINER_NAME=findu-frontend
 
-NEXT_PUBLIC_API_URL=http://oc2.lifebow.net:3001/api
-NEXT_PUBLIC_SOCKET_URL=http://oc2.lifebow.net:3001
-NEXT_PUBLIC_BACKEND_URL=http://oc2.lifebow.net:3001
+NEXT_PUBLIC_API_URL=https://api.chatvn.online/api
+NEXT_PUBLIC_SOCKET_URL=https://api.chatvn.online
+NEXT_PUBLIC_BACKEND_URL=https://api.chatvn.online
 ```
 
 Y nghia cac bien:
@@ -50,12 +50,12 @@ Y nghia cac bien:
 
 Luu y quan trong: cac bien `NEXT_PUBLIC_*` cua Next.js duoc nhung vao client bundle luc build. Moi lan doi cac bien nay phai build lai image.
 
-Neu backend da deploy tren VPS/domain rieng, doi thanh gia tri that, vi du:
+Backend hien tai dung domain rieng:
 
 ```env
-NEXT_PUBLIC_API_URL=https://api.oc2.lifebow.net/api
-NEXT_PUBLIC_SOCKET_URL=https://api.oc2.lifebow.net
-NEXT_PUBLIC_BACKEND_URL=https://api.oc2.lifebow.net
+NEXT_PUBLIC_API_URL=https://api.chatvn.online/api
+NEXT_PUBLIC_SOCKET_URL=https://api.chatvn.online
+NEXT_PUBLIC_BACKEND_URL=https://api.chatvn.online
 ```
 
 ---
@@ -190,7 +190,7 @@ cp .env.example .env
 nano .env
 ```
 
-Noi dung mau neu backend van dung Railway:
+Noi dung mau hien tai:
 
 ```env
 APP_PORT=3002
@@ -198,9 +198,9 @@ PORT=3001
 IMAGE_NAME=findu-frontend
 CONTAINER_NAME=findu-frontend
 
-NEXT_PUBLIC_API_URL=http://oc2.lifebow.net:3001/api
-NEXT_PUBLIC_SOCKET_URL=http://oc2.lifebow.net:3001
-NEXT_PUBLIC_BACKEND_URL=http://oc2.lifebow.net:3001
+NEXT_PUBLIC_API_URL=https://api.chatvn.online/api
+NEXT_PUBLIC_SOCKET_URL=https://api.chatvn.online
+NEXT_PUBLIC_BACKEND_URL=https://api.chatvn.online
 ```
 
 Khong commit `.env` len Git. File nay da nam trong `.gitignore`.
@@ -224,10 +224,10 @@ docker compose logs -f --tail=100 frontend
 curl -I http://127.0.0.1:3002/
 ```
 
-Neu chua dung Nginx, co the truy cap tam:
+Neu chua dung Nginx, co the truy cap tam bang IP/host kem port:
 
 ```text
-http://oc2.lifebow.net:3002
+http://<VPS_PUBLIC_IP>:3002
 ```
 
 Neu VPS co firewall, mo port 3002:
@@ -259,10 +259,30 @@ Noi dung:
 ```nginx
 server {
     listen 80;
-    server_name oc2.lifebow.net;
+    listen [::]:80;
+
+    server_name chatvn.online www.chatvn.online;
 
     location / {
         proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name api.chatvn.online;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -285,7 +305,7 @@ sudo systemctl reload nginx
 Sau do truy cap:
 
 ```text
-http://oc2.lifebow.net
+https://chatvn.online
 ```
 
 ---
@@ -294,7 +314,7 @@ http://oc2.lifebow.net
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d oc2.lifebow.net
+sudo certbot --nginx -d chatvn.online -d www.chatvn.online -d api.chatvn.online
 ```
 
 Kiem tra auto-renew:
@@ -306,23 +326,23 @@ sudo certbot renew --dry-run
 Sau khi co HTTPS, frontend public URL la:
 
 ```text
-https://oc2.lifebow.net
+https://chatvn.online
 ```
 
 ---
 
 ## 10. Cau hinh backend sau khi doi domain
 
-Neu frontend chuyen sang `https://oc2.lifebow.net`, backend can cho phep domain moi.
+Neu frontend chuyen sang `https://chatvn.online`, backend can cho phep domain moi.
 
 Can cap nhat:
 
 | Hang muc | Gia tri can them |
 | --- | --- |
-| CORS origin | `https://oc2.lifebow.net` |
-| OAuth callback | `https://oc2.lifebow.net/auth/callback` |
+| CORS origin | `https://chatvn.online` |
+| OAuth callback | `https://chatvn.online/auth/callback` |
 | Cookie domain/SameSite | Kiem tra neu backend dung cookie cross-site |
-| Socket.IO CORS | `https://oc2.lifebow.net` |
+| Socket.IO CORS | `https://chatvn.online` |
 
 Neu backend van nam o Railway, can set cac bien moi tren service backend roi redeploy backend.
 
@@ -427,9 +447,9 @@ Tao cac variable:
 
 | Variable | Gia tri hien tai |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `http://oc2.lifebow.net:3001/api` |
-| `NEXT_PUBLIC_SOCKET_URL` | `http://oc2.lifebow.net:3001` |
-| `NEXT_PUBLIC_BACKEND_URL` | `http://oc2.lifebow.net:3001` |
+| `NEXT_PUBLIC_API_URL` | `https://api.chatvn.online/api` |
+| `NEXT_PUBLIC_SOCKET_URL` | `https://api.chatvn.online` |
+| `NEXT_PUBLIC_BACKEND_URL` | `https://api.chatvn.online` |
 
 Workflow co default cho 3 bien nay, nhung tao Variables giup doi backend URL ma khong can sua workflow.
 
@@ -468,7 +488,7 @@ Actions -> Deploy frontend to VPS
 Khi workflow thanh cong, kiem tra:
 
 ```bash
-curl -I http://oc2.lifebow.net:3002/
+curl -I https://chatvn.online/
 ```
 
 Tren VPS:
@@ -571,7 +591,7 @@ Kiem tra:
 
 - `NEXT_PUBLIC_BACKEND_URL` tro dung backend public URL.
 - Nginx co header `Upgrade` va `Connection "upgrade"`.
-- Backend cho phep CORS/Socket.IO origin `https://oc2.lifebow.net`.
+- Backend cho phep CORS/Socket.IO origin `https://chatvn.online`.
 - Sau khi sua `.env`, da chay lai `docker compose up -d --build`.
 
 ### Doi `.env` nhung frontend van goi URL cu
@@ -625,8 +645,8 @@ Kiem tra:
 4. File `.env` da tao tu `.env.example` va dien dung backend URL.
 5. Da chay `docker compose --env-file .env up -d --build`.
 6. `curl -I http://127.0.0.1:3002/` tra ve HTTP 200/3xx.
-7. `curl -I http://oc2.lifebow.net:3002/` tra ve HTTP 200/3xx.
-8. Neu muon dung domain khong kem port, Nginx proxy domain `oc2.lifebow.net` ve `127.0.0.1:3002`.
+7. `curl -I https://chatvn.online/` tra ve HTTP 200/3xx.
+8. Nginx proxy domain `chatvn.online` ve `127.0.0.1:3002` va `api.chatvn.online` ve `127.0.0.1:3001`.
 9. Neu bat HTTPS, backend can cap nhat CORS/OAuth callback cho domain moi.
 10. GitHub Actions co `VPS_SSH_KEY` va Variables `NEXT_PUBLIC_*`.
 11. GHCR image `ghcr.io/cyrus-ego/findu-frontend:latest` pull duoc tu VPS.
