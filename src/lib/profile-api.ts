@@ -1,7 +1,7 @@
 import { apiClient } from './api';
 
 export type Gender = 'male' | 'female' | 'other';
-export type ChatPreference = 'opposite' | 'same' | 'any';
+export type ChatPreference = Gender;
 
 export interface ProfileData {
   user: {
@@ -20,7 +20,6 @@ export interface ProfileData {
     bio: string;
     avatar: string;
     chatPreference: ChatPreference;
-    preferredGender?: Gender;
     isVip: boolean;
   } | null;
   isComplete: boolean;
@@ -32,7 +31,6 @@ export interface CreateProfilePayload {
   age: number;
   bio?: string;
   chatPreference?: ChatPreference;
-  preferredGender?: Gender;
 }
 
 export type UpdateProfilePayload = Partial<CreateProfilePayload>;

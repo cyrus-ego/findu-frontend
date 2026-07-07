@@ -500,6 +500,29 @@ docker compose --env-file .env -f docker-compose.prod.yml ps
 docker compose --env-file .env -f docker-compose.prod.yml logs --tail=100 frontend
 ```
 
+### 12.5. Pull/up thu cong tren VPS
+
+Co the dung script nay tren VPS de pull image GHCR moi va restart container bang `docker-compose.prod.yml`:
+
+```bash
+cd /home/hai/dev/findu-frontend
+bash scripts/docker-pull-up.sh
+```
+
+Script mac dinh doc `.env`, dung `docker-compose.prod.yml`, pull service `frontend`, sau do `up -d frontend`.
+
+Neu muon chay mot tag cu the:
+
+```bash
+bash scripts/docker-pull-up.sh --tag <git-sha>
+```
+
+Neu muon don image cu sau khi deploy:
+
+```bash
+bash scripts/docker-pull-up.sh --prune
+```
+
 ---
 
 ## 13. Doi bien moi truong

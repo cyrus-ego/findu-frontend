@@ -15,6 +15,20 @@ function formatTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+const getOppositeGender = (gender?: Gender): Gender | undefined => {
+  if (gender === 'male') return 'female';
+  if (gender === 'female') return 'male';
+  if (gender === 'other') return 'other';
+  return undefined;
+};
+
+const normalizePreference = (value: unknown, gender?: Gender): ChatPreference => {
+  if (value === 'male' || value === 'female' || value === 'other') return value;
+  if (value === 'same' && gender) return gender;
+  if (value === 'opposite') return getOppositeGender(gender) ?? 'female';
+  return getOppositeGender(gender) ?? 'female';
+};
+
 export function MatchmakingPanel() {
   const router = useRouter();
   const { toast } = useToast();
@@ -29,8 +43,7 @@ export function MatchmakingPanel() {
     leaveQueue,
   } = useMatchmaking();
 
-  const [preference, setPreference] = useState<ChatPreference>('any');
-  const [preferredGender, setPreferredGender] = useState<Gender | ''>('');
+  const [preference, setPreference] = useState<ChatPreference>('female');
   const [isJoining, setIsJoining] = useState(false);
   const [isLoadingProfileSettings, setIsLoadingProfileSettings] = useState(true);
 
@@ -42,8 +55,7 @@ export function MatchmakingPanel() {
         const result = await profileApi.get();
         if (!isMounted || !result.profile) return;
 
-        setPreference(result.profile.chatPreference || 'any');
-        setPreferredGender(result.profile.preferredGender || '');
+        setPreference(normalizePreference(result.profile.chatPreference, result.profile.gender));
       } catch {
         // Search still validates profile completeness and auth errors through joinQueue.
       } finally {
@@ -66,7 +78,6 @@ export function MatchmakingPanel() {
       await joinQueue(
         {
           preference,
-          ...(preferredGender ? { preferredGender } : {}),
         },
         (roomId) => {
           toast({ title: 'Đã tìm thấy người tâm sự!' });
@@ -93,44 +104,12 @@ export function MatchmakingPanel() {
     }
   };
 
-  const selectClass =
-    'w-full rounded-md border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm';
-
   return (
     <div className="w-full max-w-md space-y-8 text-center">
       <PanelHeader />
 
       {!isInQueue ? (
         <div className="space-y-4 text-left">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Muốn chat với</label>
-            <select
-              value={preference}
-              onChange={(e) => setPreference(e.target.value as ChatPreference)}
-              className={selectClass}
-              disabled={isLoadingProfileSettings}
-            >
-              <option value="any">Bất kỳ ai (Any)</option>
-              <option value="opposite">Giới tính ngược lại (Opposite)</option>
-              <option value="same">Cùng giới tính (Same)</option>
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Giới tính đối phương (tuỳ chọn)</label>
-            <select
-              value={preferredGender}
-              onChange={(e) => setPreferredGender(e.target.value as Gender | '')}
-              className={selectClass}
-              disabled={isLoadingProfileSettings}
-            >
-              <option value="">Bất kỳ</option>
-              <option value="male">Nam</option>
-              <option value="female">Nữ</option>
-              <option value="other">Khác</option>
-            </select>
-          </div>
-
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button

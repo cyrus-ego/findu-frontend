@@ -63,6 +63,6 @@ export interface UserProfile {
   age: number;
   bio: string;
   avatar: string;
-  chatPreference: 'opposite' | 'same' | 'any';
+  chatPreference: 'male' | 'female' | 'other';
   isVip: boolean;
 }

@@ -11,6 +11,7 @@
     "docker:publish": "bash scripts/docker-build-push.sh",
     "docker:build": "bash scripts/docker-build-push.sh --load",
     "docker:push": "bash scripts/docker-push.sh",
+    "docker:pull-up": "bash scripts/docker-pull-up.sh",
     "rerun_image": "bash scripts/rerun-image.sh"
   },
   "dependencies": {

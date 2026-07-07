@@ -13,9 +13,9 @@ env:
   VPS_APP_DIR: /home/hai/dev/findu-frontend
   VPS_HOST: ${{ secrets.VPS_HOST || 'oc2.lifebow.net' }}
   VPS_USER: ${{ secrets.VPS_USER || 'hai' }}
-  NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://oc2.lifebow.net:3001/api' }}
-  NEXT_PUBLIC_SOCKET_URL: ${{ vars.NEXT_PUBLIC_SOCKET_URL || 'http://oc2.lifebow.net:3001' }}
-  NEXT_PUBLIC_BACKEND_URL: ${{ vars.NEXT_PUBLIC_BACKEND_URL || 'http://oc2.lifebow.net:3001' }}
+  NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://api.chatvn.online/api' }}
+  NEXT_PUBLIC_SOCKET_URL: ${{ vars.NEXT_PUBLIC_SOCKET_URL || 'https://api.chatvn.online' }}
+  NEXT_PUBLIC_BACKEND_URL: ${{ vars.NEXT_PUBLIC_BACKEND_URL || 'https://api.chatvn.online' }}
 
 permissions:
   contents: read

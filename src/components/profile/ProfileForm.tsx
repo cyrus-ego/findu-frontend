@@ -18,11 +18,7 @@ const schema = z.object({
   gender: z.enum(['male', 'female', 'other'], { required_error: 'Chọn giới tính' }),
   age: z.coerce.number().min(13, 'Tuổi tối thiểu 13').max(99),
   bio: z.string().max(200).optional(),
-  chatPreference: z.enum(['opposite', 'same', 'any']).default('any'),
-  preferredGender: z
-    .union([z.enum(['male', 'female', 'other']), z.literal('')])
-    .optional()
-    .transform((v) => (v === '' ? undefined : v)),
+  chatPreference: z.enum(['male', 'female', 'other'], { required_error: 'Chọn giới tính muốn chat' }),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -30,7 +26,18 @@ type FormData = z.infer<typeof schema>;
 const getOppositeGender = (gender?: Gender): Gender | undefined => {
   if (gender === 'male') return 'female';
   if (gender === 'female') return 'male';
+  if (gender === 'other') return 'other';
   return undefined;
+};
+
+const isGender = (value: unknown): value is Gender =>
+  value === 'male' || value === 'female' || value === 'other';
+
+const getInitialChatPreference = (value: unknown, gender?: Gender): Gender => {
+  if (isGender(value)) return value;
+  if (value === 'same' && gender) return gender;
+  if (value === 'opposite') return getOppositeGender(gender) ?? 'female';
+  return getOppositeGender(gender) ?? 'female';
 };
 
 const getInitialGender = (initialData: ProfileData, authGender?: Gender | null) =>
@@ -39,15 +46,16 @@ const getInitialGender = (initialData: ProfileData, authGender?: Gender | null) 
 const getFormDefaults = (initialData: ProfileData, authGender?: Gender | null) => {
   const hasProfile = !!initialData.profile;
   const gender = getInitialGender(initialData, authGender);
-  const oppositeGender = getOppositeGender(gender);
 
   return {
     displayName: initialData.user.displayName,
     gender,
     age: initialData.profile?.age,
     bio: initialData.profile?.bio || '',
-    chatPreference: hasProfile ? initialData.profile?.chatPreference || 'any' : 'opposite',
-    preferredGender: hasProfile ? initialData.profile?.preferredGender : oppositeGender,
+    chatPreference: getInitialChatPreference(
+      hasProfile ? initialData.profile?.chatPreference : undefined,
+      gender,
+    ),
   };
 };
 
@@ -114,7 +122,6 @@ export function ProfileForm({ initialData, onSaved, onCancel }: Props) {
         age: data.age,
         bio: data.bio,
         chatPreference: data.chatPreference,
-        preferredGender: data.preferredGender,
       };
 
       const result = hasProfile
@@ -218,16 +225,6 @@ export function ProfileForm({ initialData, onSaved, onCancel }: Props) {
       <div className="space-y-2">
         <Label>Muốn chat với</Label>
         <select {...register('chatPreference')} className={selectClass}>
-          <option value="any">Bất kỳ ai</option>
-          <option value="opposite">Giới tính ngược lại</option>
-          <option value="same">Cùng giới tính</option>
-        </select>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Giới tính đối phương ưu tiên (tuỳ chọn)</Label>
-        <select {...register('preferredGender')} className={selectClass}>
-          <option value="">Không chọn</option>
           <option value="male">Nam</option>
           <option value="female">Nữ</option>
           <option value="other">Khác</option>

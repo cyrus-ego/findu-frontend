@@ -11,12 +11,6 @@ const GENDER_LABEL: Record<string, string> = {
   other: 'Khác',
 };
 
-const PREFERENCE_LABEL: Record<string, string> = {
-  any: 'Bất kỳ ai',
-  opposite: 'Giới tính ngược lại',
-  same: 'Cùng giới tính',
-};
-
 interface Props {
   data: ProfileData;
 }
@@ -58,15 +52,8 @@ export function ProfileView({ data }: Props) {
           <InfoRow
             icon={<Users className="h-4 w-4" />}
             label="Muốn chat với"
-            value={PREFERENCE_LABEL[profile.chatPreference] || profile.chatPreference}
+            value={GENDER_LABEL[profile.chatPreference] || profile.chatPreference}
           />
-          {profile.preferredGender && (
-            <InfoRow
-              icon={<Users className="h-4 w-4" />}
-              label="Giới tính ưu tiên"
-              value={GENDER_LABEL[profile.preferredGender]}
-            />
-          )}
           {profile.bio && (
             <Wrapper className="sm:col-span-2">
               <p className="mb-1 text-xs font-medium text-muted-foreground">Giới thiệu</p>

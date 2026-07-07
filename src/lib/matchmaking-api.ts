@@ -1,9 +1,8 @@
 import { apiClient } from './api';
-import type { Gender, ChatPreference } from '@/lib/profile-api';
+import type { ChatPreference } from '@/lib/profile-api';
 
 export interface JoinMatchmakingPayload {
   preference: ChatPreference;
-  preferredGender?: Gender;
 }
 
 export interface QueueStatus {
@@ -13,7 +12,6 @@ export interface QueueStatus {
   waitSeconds: number;
   expiresInSeconds: number;
   preference: string;
-  preferredGender?: string;
   timedOut: boolean;
 }
 
