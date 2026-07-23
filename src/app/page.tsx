@@ -1,8 +1,15 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Shield, Zap } from 'lucide-react';
+import { MessageCircle, Shield, Zap, User } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
 
 export default function LandingPage() {
+  const { isAuthenticated } = useAuth();
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/10 px-4">
       <div className="mx-auto max-w-2xl text-center">
@@ -22,12 +29,28 @@ export default function LandingPage() {
         </p>
 
         <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:justify-center">
-          <Button asChild size="lg" className="rounded-full px-8">
-            <Link href="/register">Bắt đầu ngay</Link>
-          </Button>
-          <Button asChild variant="outline" size="lg" className="rounded-full px-8">
-            <Link href="/login">Đăng nhập</Link>
-          </Button>
+          {hasHydrated && isAuthenticated ? (
+            <>
+              <Button asChild size="lg" className="rounded-full px-8">
+                <Link href="/matchmaking">Bắt đầu ngay</Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="rounded-full px-8">
+                <Link href="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  Hồ sơ
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild size="lg" className="rounded-full px-8">
+                <Link href="/register">Bắt đầu ngay</Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="rounded-full px-8">
+                <Link href="/login">Đăng nhập</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">

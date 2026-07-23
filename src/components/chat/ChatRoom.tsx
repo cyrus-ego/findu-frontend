@@ -20,6 +20,7 @@ export function ChatRoom({ roomId }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [blockConfirm, setBlockConfirm] = useState(false);
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   const {
     messages,
@@ -105,7 +106,7 @@ export function ChatRoom({ roomId }: Props) {
               <Ban className="h-4 w-4" />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={handleLeave} title="Rời phòng">
+          <Button variant="ghost" size="icon" onClick={() => setLeaveConfirm(true)} title="Rời phòng">
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
@@ -177,6 +178,25 @@ export function ChatRoom({ roomId }: Props) {
               </Button>
               <Button variant="destructive" className="flex-1" onClick={handleBlock}>
                 Chặn
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {leaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl border bg-card p-5">
+            <h3 className="font-semibold">Rời phòng chat?</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Cuộc trò chuyện sẽ kết thúc và tin nhắn sẽ không được lưu lại.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setLeaveConfirm(false)}>
+                Ở lại
+              </Button>
+              <Button variant="destructive" className="flex-1" onClick={handleLeave}>
+                Rời phòng
               </Button>
             </div>
           </div>

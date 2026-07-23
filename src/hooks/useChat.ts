@@ -67,6 +67,7 @@ export function useChat(roomId: string) {
 
     const onSocketError = (data: { message?: string }) => {
       setError(data?.message || 'Có lỗi xảy ra');
+      setTimeout(() => setError(null), 5000);
     };
 
     /**

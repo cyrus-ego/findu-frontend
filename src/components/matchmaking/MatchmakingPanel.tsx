@@ -106,7 +106,7 @@ export function MatchmakingPanel() {
 
   return (
     <div className="w-full max-w-md space-y-8 text-center">
-      <PanelHeader />
+      {/* <PanelHeader /> */}
 
       {!isInQueue ? (
         <div className="space-y-4 text-left">
@@ -138,8 +138,12 @@ export function MatchmakingPanel() {
             <div>
               <p className="text-lg font-semibold">Đang tìm người tâm sự...</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Hệ thống ghép theo FIFO — ưu tiên người chờ lâu nhất
+                Nếu thấy quá lâu hãy xem lại setting hồ sơ của bạn.
               </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Ưu tiên người chờ đến trước!
+              </p>
+              
             </div>
           </div>
 
@@ -164,7 +168,7 @@ export function MatchmakingPanel() {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <Button variant="outline" className="w-full" onClick={leaveQueue}>
+          <Button variant="destructive" size="lg" className="w-full rounded-full" onClick={leaveQueue}>
             Huỷ tìm kiếm
           </Button>
         </div>
@@ -183,7 +187,7 @@ function PanelHeader() {
       </div>
       <h1 className="text-2xl font-bold">Tìm người tâm sự</h1>
       <p className="mt-2 text-muted-foreground">
-        Ghép đôi ẩn danh với người lạ phù hợp preference của bạn
+        Nếu thấy quá lâu hãy xem lại setting hồ sơ của bạn.
       </p>
     </div>
   );

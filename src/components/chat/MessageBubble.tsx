@@ -27,9 +27,7 @@ export function MessageBubble({ message, isOwn }: Props) {
             : 'rounded-tl-sm bg-muted text-foreground',
         )}
       >
-        {!isOwn && (
-          <p className="mb-1 text-xs font-medium text-muted-foreground">{message.senderAlias}</p>
-        )}
+
         {message.type === 'image' && message.imageUrl ? (
           <img
             src={message.imageUrl}
