@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Users, Loader2, Clock, Hash } from 'lucide-react';
+import { Users, Clock, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMatchmaking } from '@/hooks/useMatchmaking';
 import { useToast } from '@/hooks/use-toast';
@@ -36,8 +36,7 @@ export function MatchmakingPanel() {
     isInQueue,
     position,
     queueSize,
-    waitSeconds,
-    expiresInSeconds,
+    elapsedSeconds,
     error,
     joinQueue,
     leaveQueue,
@@ -129,49 +128,78 @@ export function MatchmakingPanel() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <Loader2 className="h-14 w-14 animate-spin text-primary" />
-              <Users className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 text-primary" />
-            </div>
-            <div>
-              <p className="text-lg font-semibold">Đang tìm người tâm sự...</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Nếu thấy quá lâu hãy xem lại setting hồ sơ của bạn.
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Ưu tiên người chờ đến trước!
-              </p>
-              
-            </div>
+        <>
+          {/* Shazam-style full-screen pulse background */}
+          <div className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden">
+            {/* Inner rings - fast */}
+            <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[200px] w-[200px] rounded-full border-2 border-primary/40" />
+            <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[200px] w-[200px] rounded-full border-2 border-primary/30 [animation-delay:0.7s]" />
+            <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[200px] w-[200px] rounded-full border-2 border-primary/20 [animation-delay:1.4s]" />
+            {/* Middle rings */}
+            <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[350px] w-[350px] rounded-full border-2 border-primary/30" />
+            <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[350px] w-[350px] rounded-full border-2 border-primary/20 [animation-delay:1s]" />
+            <div className="animate-pulse-ring absolute left-1/2 top-1/2 h-[350px] w-[350px] rounded-full border border-primary/15 [animation-delay:2s]" />
+            {/* Outer rings - slow */}
+            <div className="animate-pulse-ring-slow absolute left-1/2 top-1/2 h-[500px] w-[500px] rounded-full border border-primary/20" />
+            <div className="animate-pulse-ring-slow absolute left-1/2 top-1/2 h-[500px] w-[500px] rounded-full border border-primary/15 [animation-delay:1.3s]" />
+            <div className="animate-pulse-ring-slow absolute left-1/2 top-1/2 h-[500px] w-[500px] rounded-full border border-primary/10 [animation-delay:2.6s]" />
+            {/* Ambient glow */}
+            <div className="absolute left-1/2 top-1/2 h-[250px] w-[250px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 rounded-xl border bg-card/50 p-4">
-            <Stat icon={<Hash className="h-4 w-4" />} label="Vị trí chờ" value={`#${position}`} />
-            <Stat
-              icon={<Users className="h-4 w-4" />}
-              label="Đang chờ"
-              value={`${queueSize} người`}
-            />
-            <Stat
-              icon={<Clock className="h-4 w-4" />}
-              label="Đã chờ"
-              value={formatTime(waitSeconds)}
-            />
-            <Stat
-              icon={<Clock className="h-4 w-4" />}
-              label="Còn lại"
-              value={formatTime(expiresInSeconds)}
-            />
+           {/* Content layer */}
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-col items-center gap-6">
+              {/* Central glowing orb */}
+              <div className="animate-pulse-glow relative flex h-28 w-28 items-center justify-center rounded-full bg-primary/10 backdrop-blur-sm">
+                <Users className="h-12 w-12 text-primary" />
+              </div>
+              <div>
+                <p className="text-xl font-semibold">
+                  {elapsedSeconds < 30
+                    ? 'Đang tìm người phù hợp...'
+                    : elapsedSeconds < 120
+                      ? 'Nhiều người đang online, sắp tìm thấy rồi!'
+                      : 'Đang mở rộng tìm kiếm...'}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {elapsedSeconds >= 120
+                    ? 'Nếu thấy quá lâu hãy xem lại setting hồ sơ của bạn.'
+                    : 'Ưu tiên người chờ đến trước!'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 rounded-xl border bg-card/80 p-4 backdrop-blur">
+              <Stat icon={<Hash className="h-4 w-4" />} label="Vị trí chờ" value={`#${position}`} />
+              <Stat
+                icon={<Users className="h-4 w-4" />}
+                label="Đang chờ"
+                value={`${queueSize} người`}
+              />
+              <Stat
+                icon={<Clock className="h-4 w-4" />}
+                label="Đã chờ"
+                value={formatTime(elapsedSeconds)}
+              />
+            </div>
+
+            {elapsedSeconds >= 120 && (
+              <p className="text-center text-xs text-muted-foreground">
+                <Link href="/profile" className="text-primary hover:underline">
+                  Cập nhật hồ sơ
+                </Link>{' '}
+                để tăng cơ hội ghép đôi nhanh hơn
+              </p>
+            )}
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
+
+            <Button variant="destructive" size="lg" className="w-full rounded-full" onClick={leaveQueue}>
+              Huỷ tìm kiếm
+            </Button>
           </div>
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
-
-          <Button variant="destructive" size="lg" className="w-full rounded-full" onClick={leaveQueue}>
-            Huỷ tìm kiếm
-          </Button>
-        </div>
+        </>
       )}
     </div>
   );
