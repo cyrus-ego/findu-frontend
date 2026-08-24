@@ -7,6 +7,7 @@ import { ProfileForm } from '@/components/profile/ProfileForm';
 import { ProfileView } from '@/components/profile/ProfileView';
 import { profileApi, type ProfileData } from '@/lib/profile-api';
 import { useToast } from '@/hooks/use-toast';
+import { AccountDeletionSection } from '@/components/profile/AccountDeletionSection';
 
 export default function ProfilePage() {
   const { toast } = useToast();
@@ -90,6 +91,8 @@ export default function ProfilePage() {
       ) : (
         <ProfileView data={data} />
       )}
+
+      {!isEditing && <AccountDeletionSection />}
     </div>
   );
 }

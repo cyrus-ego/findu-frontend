@@ -71,8 +71,8 @@ const sections = [
       <p>
         Thông tin tài khoản và hồ sơ được lưu trong thời gian tài khoản còn hoạt động. Tin nhắn
         trong phòng chat được lưu tạm thời để duy trì cuộc trò chuyện và bị xóa khi phòng chat đóng.
-        Một số báo cáo, nhật ký hoặc dữ liệu tối thiểu có thể được giữ lâu hơn khi cần thiết cho an
-        toàn, chống gian lận hoặc nghĩa vụ pháp lý.
+        Bản ghi yêu cầu xóa và dữ liệu an toàn/chống lạm dụng tối thiểu có thể được giữ tối đa 90
+        ngày sau khi hoàn tất yêu cầu, sau đó bị xóa, trừ khi pháp luật yêu cầu thời hạn dài hơn.
       </p>
     ),
   },
@@ -145,16 +145,48 @@ export default function PolicyPage() {
             <div>
               <h2 className="text-lg font-semibold">Yêu cầu xóa tài khoản và dữ liệu</h2>
               <p className="mt-2 leading-7 text-muted-foreground">
-                Gửi yêu cầu từ email đã đăng ký đến{' '}
+                Người dùng Talk First có thể gửi yêu cầu trực tiếp trên website mà không cần cài đặt
+                lại ứng dụng.
+              </p>
+              <ol className="mt-3 list-decimal space-y-2 pl-5 leading-7 text-muted-foreground">
+                <li>Chọn nút “Đến trang xóa tài khoản” bên dưới.</li>
+                <li>Đăng nhập đúng tài khoản cần xóa nếu được yêu cầu.</li>
+                <li>
+                  Tại mục “Xóa tài khoản Talk First”, chọn “Gửi yêu cầu xóa tài khoản” và xác nhận.
+                </li>
+              </ol>
+              <Link
+                href="/profile?deleteAccount=1"
+                className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Đến trang xóa tài khoản
+              </Link>
+              <div className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
+                <div className="rounded-lg border bg-background/60 p-4">
+                  <h3 className="font-semibold text-foreground">Dữ liệu sẽ bị xóa</h3>
+                  <p className="mt-2 leading-6 text-muted-foreground">
+                    Tài khoản, email và dữ liệu xác thực; hồ sơ và ảnh đại diện; tùy chọn ghép đôi;
+                    token thông báo; danh sách chặn và dữ liệu trò chuyện còn lại.
+                  </p>
+                </div>
+                <div className="rounded-lg border bg-background/60 p-4">
+                  <h3 className="font-semibold text-foreground">Dữ liệu được giữ tạm thời</h3>
+                  <p className="mt-2 leading-6 text-muted-foreground">
+                    Bản ghi yêu cầu và dữ liệu an toàn/chống lạm dụng tối thiểu được giữ tối đa 90
+                    ngày sau khi hoàn tất, sau đó bị xóa, trừ khi pháp luật yêu cầu lâu hơn.
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 leading-7 text-muted-foreground">
+                Talk First sẽ hoàn tất yêu cầu trong tối đa 30 ngày. Nếu không thể đăng nhập, hãy
+                gửi email từ địa chỉ đã đăng ký đến{' '}
                 <a
                   href="mailto:cyr.admin.sys@gmail.com?subject=Y%C3%AAu%20c%E1%BA%A7u%20x%C3%B3a%20t%C3%A0i%20kho%E1%BA%A3n%20Talk%20First"
                   className="font-medium text-primary underline underline-offset-4"
                 >
                   cyr.admin.sys@gmail.com
                 </a>
-                . Vui lòng ghi rõ “Yêu cầu xóa tài khoản Talk First”. Sau khi xác minh, chúng tôi sẽ
-                xóa tài khoản và dữ liệu liên quan trong vòng 30 ngày, ngoại trừ dữ liệu tối thiểu
-                phải lưu vì lý do an toàn hoặc nghĩa vụ pháp lý.
+                .
               </p>
             </div>
           </div>

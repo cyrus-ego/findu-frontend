@@ -26,6 +26,13 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const { login } = useAuthStore();
   const { toast } = useToast();
+  const requestedReturnPath = searchParams.get('from');
+  const returnPath =
+    requestedReturnPath?.startsWith('/') &&
+    !requestedReturnPath.startsWith('//') &&
+    !requestedReturnPath.includes('\\')
+      ? requestedReturnPath
+      : null;
 
   const {
     register,
@@ -45,10 +52,19 @@ export function LoginForm() {
     router.replace('/login');
   }, [searchParams, toast, router]);
 
+  useEffect(() => {
+    if (returnPath) {
+      sessionStorage.setItem('post-login-return-to', returnPath);
+    } else if (!searchParams.get('error')) {
+      sessionStorage.removeItem('post-login-return-to');
+    }
+  }, [returnPath, searchParams]);
+
   const onSubmit = async (data: FormData) => {
     try {
       await login(data.email, data.password);
-      router.push('/matchmaking');
+      sessionStorage.removeItem('post-login-return-to');
+      router.push(returnPath || '/matchmaking');
     } catch (err: any) {
       if (err.message?.includes('OTP') || err.message?.includes('xác thực')) {
         useAuthStore.getState().setPendingEmail(data.email);

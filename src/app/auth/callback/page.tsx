@@ -34,20 +34,29 @@ function AuthCallbackContent() {
           refreshToken,
         });
 
+        const requestedReturnPath = sessionStorage.getItem('post-login-return-to');
+        const returnPath =
+          requestedReturnPath?.startsWith('/') &&
+          !requestedReturnPath.startsWith('//') &&
+          !requestedReturnPath.includes('\\')
+            ? requestedReturnPath
+            : null;
+        sessionStorage.removeItem('post-login-return-to');
+
         try {
           const profile = await profileApi.get();
           if (!profile.isComplete) {
             sessionStorage.setItem('oauth-welcome', '1');
-            router.replace('/profile');
+            router.replace(returnPath || '/profile');
             return;
           }
         } catch {
           sessionStorage.setItem('oauth-welcome', '1');
-          router.replace('/profile');
+          router.replace(returnPath || '/profile');
           return;
         }
 
-        router.replace('/matchmaking');
+        router.replace(returnPath || '/matchmaking');
       })
       .catch(() => {
         router.replace('/login?error=oauth_failed');

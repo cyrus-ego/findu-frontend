@@ -35,6 +35,17 @@ export interface CreateProfilePayload {
 
 export type UpdateProfilePayload = Partial<CreateProfilePayload>;
 
+export type AccountDeletionRequestStatus = 'none' | 'pending' | 'completed' | 'rejected';
+
+export interface AccountDeletionRequest {
+  requested: boolean;
+  requestId: string | null;
+  status: AccountDeletionRequestStatus;
+  requestedAt: string | null;
+  deletionDueAt: string | null;
+  message: string;
+}
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
 export function getAvatarUrl(path: string | undefined | null): string {
@@ -94,4 +105,10 @@ export const userApi = {
 
   updateMe: (data: { displayName?: string; avatar?: string }) =>
     apiClient.patch<any, { id: string; displayName: string; avatar: string }>('/users/me', data),
+
+  getAccountDeletionRequest: () =>
+    apiClient.get<any, AccountDeletionRequest>('/users/me/deletion-request'),
+
+  requestAccountDeletion: () =>
+    apiClient.post<any, AccountDeletionRequest>('/users/me/deletion-request'),
 };
