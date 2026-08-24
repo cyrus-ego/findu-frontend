@@ -81,6 +81,12 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
+
+        <footer className="mt-10 text-sm text-muted-foreground">
+          <Link className="underline underline-offset-4 hover:text-foreground" href="/policy">
+            Chính sách quyền riêng tư
+          </Link>
+        </footer>
       </div>
     </main>
   );
